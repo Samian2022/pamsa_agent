@@ -14,7 +14,7 @@ function ScoreBadge({ value }: { value: number }) {
   const tone = scoreTone(value);
   return (
     <span
-      className="inline-flex min-w-[22px] justify-center rounded-[4px] px-1.5 py-0.5 font-mono text-[12px] font-medium"
+      className="inline-flex h-6 w-6 items-center justify-center rounded-[4px] font-mono text-[12px] font-medium"
       style={tone}
     >
       {value}
@@ -49,11 +49,11 @@ function blindSpots(row: ResearchCandidate) {
 
 function summaryCopy(picks: ResearchCandidate[]) {
   if (picks.length < 2) {
-    return `My recommendation: Start with ${picks[0]?.company || "the top-ranked company"} and lock Stage 2 from there.`;
+    return `Start with ${picks[0]?.company || "the top-ranked company"} and lock Stage 2 from there.`;
   }
   const [lead, second, third] = picks;
   const deep = third || second;
-  return `My recommendation: ${lead.company} and ${second.company} are the strongest first DMA picks in this set (${lead.sector}; ${second.sector}), with enough disclosure to score issues without guessing. ${deep.company} is the deepest dive: disclosure maturity is thinner, so the blind spots are larger and the undisclosed-risk scan will do more work. Select one card, or name a different company from the table if you want to override.`;
+  return `${lead.company} and ${second.company} are the strongest first DMA picks in this set (${lead.sector}; ${second.sector}), with enough disclosure to score issues without guessing. ${deep.company} is the deepest dive: disclosure maturity is thinner, so the blind spots are larger. Press Select on a row or card, or type another company name in chat.`;
 }
 
 export function ResearchCards({
@@ -75,34 +75,47 @@ export function ResearchCards({
           Candidate Rankings
         </h2>
         <p className="mt-2 text-[13px] leading-[1.5] text-charcoal">
-          The ranked table and three recommendation cards appear here after the agent scores five to seven companies.
+          After the agent scores five to seven companies, they appear here as a table. You pick one to start the DMA.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="w-full space-y-8">
       {selected ? (
         <p className="rounded-[8px] border border-[#2d5a4a] bg-white px-3 py-2 text-[13px] text-forest">
           Selected: {selected}
         </p>
       ) : null}
 
-      <section>
+      <section className="w-full">
         <h2 className="flex items-center gap-2 text-[16px] font-medium text-forest" style={{ fontFamily: "Georgia, serif" }}>
           <ListIcon />
           Candidate Rankings
         </h2>
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-[720px] w-full border-collapse text-left text-[13px] text-charcoal">
+        <div className="mt-4 w-full overflow-x-auto rounded-[8px] border border-[#e8dfd5] bg-white">
+          <table className="w-full min-w-[640px] border-collapse text-left text-[13px] text-charcoal">
+            <colgroup>
+              <col className="w-14" />
+              <col />
+              <col />
+              <col className="w-16" />
+              <col className="w-16" />
+              <col className="w-20" />
+              <col className="w-20" />
+              <col className="w-[88px]" />
+            </colgroup>
             <thead>
-              <tr className="text-[12px] font-medium text-[#5c5a54]">
-                {["Rank", "Company", "Sector", "Data", "Clarity", "Leverage", "Maturity"].map((label) => (
-                  <th key={label} className="border-b border-[#1a3a2e]/25 px-3 py-2.5 font-medium">
-                    {label}
-                  </th>
-                ))}
+              <tr className="bg-[#f5f3f0] text-[12px] font-medium text-[#5c5a54]">
+                <th scope="col" className="border-b border-[#1a3a2e]/30 px-3 py-2.5">Rank</th>
+                <th scope="col" className="border-b border-[#1a3a2e]/30 px-3 py-2.5">Company</th>
+                <th scope="col" className="border-b border-[#1a3a2e]/30 px-3 py-2.5">Sector</th>
+                <th scope="col" className="border-b border-[#1a3a2e]/30 px-3 py-2.5 text-center">Data</th>
+                <th scope="col" className="border-b border-[#1a3a2e]/30 px-3 py-2.5 text-center">Clarity</th>
+                <th scope="col" className="border-b border-[#1a3a2e]/30 px-3 py-2.5 text-center">Leverage</th>
+                <th scope="col" className="border-b border-[#1a3a2e]/30 px-3 py-2.5 text-center">Maturity</th>
+                <th scope="col" className="border-b border-[#1a3a2e]/30 px-3 py-2.5">Pick</th>
               </tr>
             </thead>
             <tbody>
@@ -111,22 +124,31 @@ export function ResearchCards({
                 return (
                   <tr
                     key={row.company}
-                    className={isSelected ? "bg-white" : index % 2 === 1 ? "bg-[#f9f8f6]" : "bg-white"}
+                    className={isSelected ? "bg-[#e8f0ec]" : index % 2 === 1 ? "bg-[#f9f8f6]" : "bg-white"}
                   >
                     <td className="border-b border-[#e8dfd5] px-3 py-3 font-mono text-[12px] font-medium">{row.rank}</td>
                     <td className="border-b border-[#e8dfd5] px-3 py-3 font-medium text-forest">{row.company}</td>
                     <td className="border-b border-[#e8dfd5] px-3 py-3">{row.sector}</td>
-                    <td className="border-b border-[#e8dfd5] px-3 py-3">
+                    <td className="border-b border-[#e8dfd5] px-3 py-3 text-center">
                       <ScoreBadge value={row.dataAvailability} />
                     </td>
-                    <td className="border-b border-[#e8dfd5] px-3 py-3">
+                    <td className="border-b border-[#e8dfd5] px-3 py-3 text-center">
                       <ScoreBadge value={row.materialityClarity} />
                     </td>
-                    <td className="border-b border-[#e8dfd5] px-3 py-3">
+                    <td className="border-b border-[#e8dfd5] px-3 py-3 text-center">
                       <ScoreBadge value={row.modelLeverage} />
                     </td>
-                    <td className="border-b border-[#e8dfd5] px-3 py-3">
+                    <td className="border-b border-[#e8dfd5] px-3 py-3 text-center">
                       <ScoreBadge value={row.disclosureMaturity} />
+                    </td>
+                    <td className="border-b border-[#e8dfd5] px-3 py-3">
+                      <button
+                        type="button"
+                        onClick={() => onSelect(row.company)}
+                        className="rounded-md bg-[#2d5a4a] px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-90"
+                      >
+                        {isSelected ? "Selected" : "Select"}
+                      </button>
                     </td>
                   </tr>
                 );
@@ -141,14 +163,14 @@ export function ResearchCards({
           <StarIcon />
           Top Recommendations
         </h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-4">
           {recommended.map((row, index) => {
             const accent = ACCENTS[index % ACCENTS.length];
             const isSelected = selected === row.company;
             return (
               <article
                 key={row.company}
-                className="rounded-xl bg-[#f5f3f0] p-6 transition-[opacity,border-color] duration-200 ease-linear hover:opacity-95"
+                className="rounded-xl bg-white p-6"
                 style={{ border: `${isSelected ? 1 : 0.5}px solid ${accent}` }}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -171,7 +193,7 @@ export function ResearchCards({
                   <button
                     type="button"
                     onClick={() => onSelect(row.company)}
-                    className="shrink-0 rounded-md px-4 py-2 text-[13px] font-medium text-white transition-opacity duration-200 hover:opacity-90"
+                    className="shrink-0 rounded-md px-4 py-2 text-[13px] font-medium text-white hover:opacity-90"
                     style={{ background: accent }}
                   >
                     {isSelected ? "Selected" : "Select"}
@@ -181,7 +203,7 @@ export function ResearchCards({
                   <p className="mb-1.5 text-[12px] font-medium text-[#5c5a54]">Why this company</p>
                   <p className="text-[13px] leading-[1.5] text-charcoal">{whyCopy(row)}</p>
                   <p className="mb-1.5 mt-3 text-[12px] font-medium text-[#5c5a54]">Key blind spots</p>
-                  <p className="text-[13px] leading-[1.5] text-rust">{blindSpots(row)}</p>
+                  <p className="text-[13px] leading-[1.5] text-[#c85a38]">{blindSpots(row)}</p>
                 </div>
               </article>
             );
@@ -189,8 +211,8 @@ export function ResearchCards({
         </div>
       </section>
 
-      <aside className="rounded-lg border-l-[3px] border-sage bg-[#f5f3f0] p-4 text-[13px] leading-[1.6] text-forest">
-        <strong>My recommendation:</strong> {summaryCopy(recommended).replace(/^My recommendation:\s*/, "")}
+      <aside className="rounded-lg border-l-[3px] border-[#2d5a4a] bg-[#f5f3f0] p-4 text-[13px] leading-[1.6] text-forest">
+        <strong>My recommendation:</strong> {summaryCopy(recommended)}
       </aside>
     </div>
   );

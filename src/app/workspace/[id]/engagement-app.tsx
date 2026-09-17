@@ -185,8 +185,8 @@ export function EngagementApp({
 
         <div className="flex min-h-0 flex-1">
           <section className="flex min-w-0 flex-1 flex-col">
-            <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 py-6 lg:px-8">
-              <div className="mx-auto w-full max-w-[1200px] space-y-8">
+            <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 lg:px-8">
+              <div className={`mx-auto w-full space-y-8 ${engagement.stage <= 1 ? "max-w-none" : "max-w-[1200px]"}`}>
                 {view === "workspace" || view === "issues" ? (
                   <>
                     {engagement.stage <= 1 ? (
@@ -230,7 +230,7 @@ export function EngagementApp({
                 {view === "probing" ? <TimelineLog engagement={engagement} mode="probing" /> : null}
                 {view === "assumptions" ? <TimelineLog engagement={engagement} mode="assumptions" /> : null}
 
-                {(view === "chat" || view === "workspace") && (
+                {(view === "chat" || (view === "workspace" && engagement.stage > 1)) && (
                   <div className="space-y-4">
                     {messages.map((message) => (
                       <article
@@ -322,10 +322,11 @@ export function EngagementApp({
             </form>
           </section>
 
+          {engagement.stage > 1 || rightOpen ? (
           <RightSidebar
             engagement={engagement}
             selectedIssue={selectedIssue}
-            open={rightOpen}
+            open={rightOpen || engagement.stage > 1}
             onClose={() => setRightOpen(false)}
             onConfirm={(issue, note) => {
               void sendText(
@@ -343,6 +344,7 @@ export function EngagementApp({
               );
             }}
           />
+          ) : null}
         </div>
       </div>
 
