@@ -33,9 +33,10 @@ Local engagements are stored in `.data/` (gitignored).
 ## Deploy on Vercel so the team can use it
 
 1. Import [this GitHub repo](https://github.com/Samian2022/pamsa_agent) in [Vercel](https://vercel.com/new). Use the **main** branch.
-2. Add environment variables from `.env.example` (do not skip `TEAM_ALLOWLIST`, `ACCESS_CODE`, `AUTH_SECRET`, and an AI key)
-3. Create a **Blob** store in the Vercel project so engagements persist (`BLOB_READ_WRITE_TOKEN`)
-4. Deploy. Share the URL with allowlisted teammates only.
+2. In Project Settings → Build and Deployment, set Framework Preset to **Next.js**. Leave Root Directory empty. Do not set Output Directory to `out` or `.next`.
+3. Add environment variables from `.env.example` (do not skip `TEAM_ALLOWLIST`, `ACCESS_CODE`, `AUTH_SECRET`, and an AI key)
+4. Create a **Blob** store in the Vercel project so engagements persist (`BLOB_READ_WRITE_TOKEN`)
+5. Deploy the latest `main` commit. If the production URL shows Vercel's 404 page (`NOT_FOUND` with an `iad1::` id), there is no successful Next.js deployment yet. Open Deployments, confirm the newest one is Ready, then visit that deployment's `.vercel.app` URL.
 
 Recommended production env:
 

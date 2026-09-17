@@ -1,20 +1,13 @@
 import { timingSafeEqual as cryptoTimingSafeEqual } from "crypto";
-import { SignJWT, jwtVerify } from "jose";
-import { cookies } from "next/headers";
+import { getCurrentUser } from "./session";
 import type { SessionUser } from "./types";
 
-export const SESSION_COOKIE = "pamsa_session";
-
-function secretKey() {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("AUTH_SECRET is required in production.");
-    }
-    return new TextEncoder().encode("pamsa-dev-only-secret-change-me");
-  }
-  return new TextEncoder().encode(secret);
-}
+export {
+  SESSION_COOKIE,
+  createSessionToken,
+  getCurrentUser,
+  readSessionToken,
+} from "./session";
 
 export function timingSafeEqual(a: string, b: string) {
   const left = Buffer.from(a);
@@ -86,33 +79,6 @@ export function validateLogin(input: {
   }
 
   return { ok: true, user: { name: match.name || name, email } };
-}
-
-export async function createSessionToken(user: SessionUser) {
-  return new SignJWT({ name: user.name, email: user.email })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("14d")
-    .sign(secretKey());
-}
-
-export async function readSessionToken(token: string): Promise<SessionUser | null> {
-  try {
-    const { payload } = await jwtVerify(token, secretKey());
-    const name = typeof payload.name === "string" ? payload.name : "";
-    const email = typeof payload.email === "string" ? payload.email : "";
-    if (!name || !email) return null;
-    return { name, email };
-  } catch {
-    return null;
-  }
-}
-
-export async function getCurrentUser(): Promise<SessionUser | null> {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  return readSessionToken(token);
 }
 
 export async function requireUser(): Promise<SessionUser> {
