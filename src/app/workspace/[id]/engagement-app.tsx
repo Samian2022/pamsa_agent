@@ -190,7 +190,12 @@ export function EngagementApp({
                 {view === "workspace" || view === "issues" ? (
                   <>
                     {engagement.stage <= 1 ? (
-                      <ResearchCards engagement={engagement} onSelect={selectIssue} />
+                      <ResearchCards
+                        engagement={engagement}
+                        onSelect={(company) => {
+                          void sendText(`Start DMA on ${company}. Use set_selected_company and begin the Stage 2 disclosure audit.`);
+                        }}
+                      />
                     ) : null}
                     {engagement.stage === 2 ? <ProfileView engagement={engagement} /> : null}
                     {engagement.stage >= 3 && engagement.stage <= 4 ? (

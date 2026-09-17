@@ -12,6 +12,8 @@ import type {
 } from "@/lib/types";
 import { MaterialityMatrix } from "./materiality-matrix";
 
+export { ResearchCards } from "./candidate-research";
+
 function PanelHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div className="mb-4">
@@ -44,69 +46,6 @@ function StatusDots({
       <span className={`h-2 w-2 rounded-full ${researched ? "bg-sage" : "bg-taupe/40"}`} />
       <span className={`h-2 w-2 rounded-full ${validated ? "bg-teal" : "bg-taupe/40"}`} />
       <span className={`h-2 w-2 rounded-full ${included ? "bg-forest" : "bg-taupe/40"}`} />
-    </div>
-  );
-}
-
-export function ResearchCards({
-  engagement,
-  onSelect,
-}: {
-  engagement: Engagement;
-  onSelect: (issue: string) => void;
-}) {
-  const rows = engagement.artifacts.researchCandidates || [];
-  if (!rows.length) {
-    return (
-      <div>
-        <PanelHeader
-          title="Your discovery"
-          subtitle="Search companies. Surface risks. Let's begin."
-        />
-        <p className="text-sm text-ink-soft">
-          The research table appears here after the agent scores five to seven companies.
-        </p>
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-3">
-      <PanelHeader
-        title="Your discovery"
-        subtitle="Find what's hidden. Pick the company whose silence is most material."
-      />
-      {engagement.artifacts.selectedCompany ? (
-        <p className="rounded-xl bg-sage/15 px-3 py-2 text-sm text-sage">
-          Selected: {engagement.artifacts.selectedCompany}
-        </p>
-      ) : null}
-      {rows.map((row, index) => (
-        <button
-          key={row.company}
-          type="button"
-          onClick={() => onSelect(row.company)}
-          className="lift animate-slide-left w-full rounded-xl border-l-[2px] border-sage bg-white p-4 text-left shadow-sm"
-          style={{ animationDelay: `${index * 0.1}s` }}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h3 className="serif text-[16px] text-forest">
-                {row.rank}. {row.company}
-              </h3>
-              <p className="mt-1 line-clamp-2 text-[13px] text-ink-soft">
-                {row.keyMaterialAngles}. Blind spots: {row.likelyBlindSpots}
-              </p>
-              <span className="mt-2 inline-block rounded-full bg-cloud-2 px-2 py-0.5 text-[11px] uppercase tracking-wide text-rust">
-                Undisclosed risk scan
-              </span>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <ConfidenceBadge value={row.disclosureMaturity >= 4 ? "high" : row.disclosureMaturity >= 3 ? "medium" : "low"} />
-              <StatusDots researched included={false} validated={engagement.artifacts.selectedCompany === row.company} />
-            </div>
-          </div>
-        </button>
-      ))}
     </div>
   );
 }

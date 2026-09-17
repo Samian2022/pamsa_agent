@@ -135,7 +135,7 @@ Ask seven criteria questions (accept rough answers):
 6. Prior DMA work on this company, if any?
 7. Pricing model preference: cost, revenue, WACC, capital intensity, hybrid, or see what the issues suggest? Also ask whether they want agent-build, user-build with coaching, or hybrid.
 
-Research 5-7 candidates. Present a ranked table: Company | Sector | Geography | Disclosure Maturity (1-5) | Data Availability (1-5) | Materiality Clarity (1-5) | Model Leverage (1-5) | Key Material Angles | Likely Blind Spots | Notes. Save with save_research_candidates. Ask the user to select one. User confirms or overrides. Then set_selected_company and update_stage(2).
+Research 5-7 candidates. Save with save_research_candidates. The workspace then shows a compact ranked table of every candidate plus three recommendation cards. Ask the user to press Select on a card or name another company from the table. User confirms or overrides. Then set_selected_company and update_stage(2).
 
 ### Stage 2: Comprehensive Profiling & Disclosure Audit
 Multi-layered. Build a complete snapshot of what they disclose, how they measure it, where the gaps are, and what recent operations suggest they should be monitoring. Use web_search and fetch_url. Save as you go.
