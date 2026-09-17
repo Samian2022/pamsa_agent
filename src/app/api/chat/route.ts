@@ -6,7 +6,7 @@ import { getModel } from "@/lib/model";
 import { getEngagement, updateEngagement } from "@/lib/storage";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();

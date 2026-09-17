@@ -48,7 +48,7 @@ Recommended production env:
 | `TAVILY_API_KEY` | Company / peer / news research |
 | `BLOB_READ_WRITE_TOKEN` | Persistent shared storage |
 
-The chat route is allowed to run up to 300 seconds. On Vercel Hobby that may be truncated; Pro / Fluid Compute is the practical plan for a research agent.
+The chat route is set to 60 seconds so it deploys on Vercel Hobby. Longer research runs need Fluid Compute or a Pro plan. If Vercel says the GitHub repo is not found, the repo is private: either make it public, or in GitHub Settings > Applications > Vercel, grant access to `pamsa_agent`.
 
 ## How a session works
 
