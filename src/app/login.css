@@ -1,0 +1,545 @@
+.login-page {
+  --leaf-green: #4a7c5e;
+  --water-blue: #5b9db3;
+  --bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: linear-gradient(135deg, #e8e6e1 0%, #d9d5ce 50%, #e8e6e1 100%);
+  color: var(--charcoal);
+}
+
+.login-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(45, 90, 74, 0.08), transparent 42%),
+    radial-gradient(circle at 80% 80%, rgba(107, 165, 160, 0.06), transparent 46%),
+    radial-gradient(circle at 50% 100%, rgba(168, 153, 104, 0.04), transparent 48%);
+}
+
+.login-particles {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.login-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  gap: 56px;
+  padding: 48px 32px;
+}
+
+.login-left {
+  position: relative;
+  flex: 1;
+  max-width: 550px;
+  padding: 36px 32px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(45, 90, 74, 0.03), transparent 55%),
+    linear-gradient(135deg, #d9d5ce 0%, #e8e6e1 100%);
+  animation: login-slide-left 0.8s ease-out both;
+}
+
+.login-left::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  pointer-events: none;
+  opacity: 0.02;
+  background-image: repeating-linear-gradient(
+    115deg,
+    transparent 0 10px,
+    rgba(26, 58, 46, 0.7) 10px 11px
+  );
+}
+
+.login-kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--taupe);
+  animation: login-fade 0.8s ease-out 0.1s both;
+}
+
+.login-title {
+  margin-top: 12px;
+  font-family: Georgia, var(--font-crimson), serif;
+  font-size: 64px;
+  font-weight: 700;
+  letter-spacing: -2px;
+  line-height: 0.95;
+  color: var(--forest);
+  animation: login-fade 0.8s ease-out 0.2s both;
+}
+
+.login-rule {
+  width: 50px;
+  height: 3px;
+  margin: 18px 0;
+  background: var(--sage);
+  transform-origin: left;
+  animation: login-expand 0.6s ease-out 0.3s both;
+}
+
+.login-intro {
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--charcoal);
+  animation: login-fade 0.8s ease-out 0.4s both;
+}
+
+.login-intro strong {
+  color: var(--sage);
+  font-weight: 600;
+}
+
+.login-features {
+  display: grid;
+  gap: 18px;
+  margin-top: 32px;
+  padding: 0;
+  list-style: none;
+}
+
+.login-features li {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--charcoal);
+  animation: login-up 0.6s ease-out both;
+}
+
+.login-features li:nth-child(1) { animation-delay: 0.5s; }
+.login-features li:nth-child(2) { animation-delay: 0.55s; }
+.login-features li:nth-child(3) { animation-delay: 0.6s; }
+.login-features li:nth-child(4) { animation-delay: 0.65s; }
+
+.login-check {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: white;
+  background: linear-gradient(135deg, var(--sage), var(--teal));
+  box-shadow: 0 4px 12px rgba(45, 90, 74, 0.2);
+}
+
+.login-features strong {
+  color: var(--forest);
+  font-weight: 600;
+}
+
+.login-card {
+  position: relative;
+  flex: 0 0 420px;
+  width: 420px;
+  overflow: hidden;
+  padding: 36px 32px;
+  border: 1px solid rgba(45, 90, 74, 0.1);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+  animation: login-slide-right 0.8s ease-out both;
+}
+
+.login-card::before {
+  content: "";
+  position: absolute;
+  top: -100px;
+  right: -100px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(107, 165, 160, 0.08), transparent 70%);
+  animation: login-spin 20s linear infinite;
+  pointer-events: none;
+}
+
+.login-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.012;
+  background-image: repeating-radial-gradient(
+    circle at 50% -20%,
+    rgba(91, 157, 179, 0.9) 0 1px,
+    transparent 1px 18px
+  );
+}
+
+.login-card h2 {
+  position: relative;
+  font-family: Georgia, var(--font-crimson), serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: var(--forest);
+  animation: login-up 0.6s ease-out 0.2s both;
+}
+
+.login-card p.lede {
+  position: relative;
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--taupe);
+  animation: login-up 0.6s ease-out 0.28s both;
+}
+
+.login-card label {
+  position: relative;
+  display: block;
+  margin-top: 18px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--charcoal);
+  animation: login-up 0.6s ease-out both;
+}
+
+.login-card label:nth-of-type(1) { animation-delay: 0.32s; }
+.login-card label:nth-of-type(2) { animation-delay: 0.38s; }
+.login-card label:nth-of-type(3) { animation-delay: 0.44s; }
+
+.login-card input {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px 14px;
+  border: 1.5px solid #e8dfd5;
+  border-radius: 8px;
+  background: white;
+  font-family: var(--font-inter), Inter, sans-serif;
+  font-size: 14px;
+  color: var(--charcoal);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  transition: border-color 0.3s var(--bounce), background 0.3s var(--bounce), box-shadow 0.3s var(--bounce), transform 0.3s var(--bounce);
+}
+
+.login-card input:focus {
+  outline: none;
+  border-color: var(--sage);
+  background: #fafaf8;
+  box-shadow: 0 0 0 4px rgba(45, 90, 74, 0.1);
+  transform: translateY(-2px);
+}
+
+.login-card input:valid:not(:focus) {
+  border-color: var(--teal);
+}
+
+.login-error {
+  position: relative;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--rust);
+}
+
+.login-submit {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  margin-top: 24px;
+  padding: 14px;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--sage), var(--teal));
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  box-shadow: 0 8px 20px rgba(45, 90, 74, 0.2);
+  cursor: pointer;
+  animation: login-up 0.6s ease-out 0.5s both;
+  transition: transform 0.3s var(--bounce), box-shadow 0.3s ease;
+}
+
+.login-submit::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-120%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+}
+
+.login-submit:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(45, 90, 74, 0.3);
+}
+
+.login-submit:hover:not(:disabled)::before {
+  animation: login-shimmer 0.6s ease forwards;
+}
+
+.login-submit:active:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.login-submit:disabled {
+  cursor: wait;
+}
+
+.login-submit.is-success {
+  background: linear-gradient(135deg, var(--teal), var(--sage));
+}
+
+.login-card.is-shake {
+  animation: login-shake 0.4s ease;
+}
+
+.climate-leaf,
+.climate-water,
+.climate-air,
+.climate-earth {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-delay: var(--delay);
+  animation-duration: var(--duration);
+  will-change: transform, opacity;
+}
+
+.climate-leaf {
+  width: var(--size);
+  height: calc(var(--size) * 1.35);
+  background: var(--tone);
+  opacity: 0.55;
+  border-radius: 2% 80% 20% 80%;
+  clip-path: polygon(50% 0%, 88% 28%, 72% 100%, 50% 82%, 28% 100%, 12% 28%);
+  animation-name: leaf-float;
+}
+
+.climate-water {
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  border: 2px solid rgba(107, 165, 160, 0.4);
+  background: radial-gradient(circle at 35% 30%, #d7eef2, var(--tone));
+  animation-name: water-ripple;
+}
+
+.climate-air {
+  width: var(--size);
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--tone), transparent);
+  opacity: 0.2;
+  animation-name: air-wisp;
+}
+
+.climate-earth {
+  width: var(--size);
+  height: calc(var(--size) * 0.62);
+  background: var(--tone);
+  border-radius: 2px 8px 3px 7px;
+  opacity: 0.45;
+  animation-name: earth-drift;
+}
+
+@keyframes leaf-float {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.7);
+  }
+  12% {
+    opacity: 0.7;
+  }
+  55% {
+    opacity: 0.35;
+    transform: translate3d(var(--tx), calc(var(--ty) * 0.55), 0) rotate(calc(var(--rotation) * 0.5)) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--tx), var(--ty), 0) rotate(var(--rotation)) scale(0.65);
+  }
+}
+
+@keyframes water-ripple {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.8);
+    box-shadow: 0 0 0 rgba(107, 165, 160, 0.6);
+  }
+  18% {
+    opacity: 0.75;
+  }
+  50% {
+    transform: translate3d(calc(var(--tx) * 0.5), calc(var(--ty) * 0.5), 0) scale(1.2);
+    box-shadow: 0 0 20px rgba(107, 165, 160, 0.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--tx), var(--ty), 0) scale(0.85);
+    box-shadow: 0 0 0 rgba(107, 165, 160, 0);
+  }
+}
+
+@keyframes air-wisp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) skewY(-4deg);
+  }
+  20% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.12;
+    transform: translate3d(calc(var(--tx) * 0.55), calc(var(--ty) * 0.5), 0) skewY(5deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--tx), var(--ty), 0) skewY(-3deg);
+  }
+}
+
+@keyframes earth-drift {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  15% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--tx), var(--ty), 0) rotate(var(--rotation));
+  }
+}
+
+@keyframes login-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes login-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes login-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes login-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes login-expand {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes login-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes login-shimmer {
+  to { transform: translateX(120%); }
+}
+
+@keyframes login-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+@media (max-width: 1199px) {
+  .login-shell {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 32px 20px 48px;
+  }
+
+  .login-left,
+  .login-card {
+    width: 100%;
+    max-width: 560px;
+    flex: none;
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .login-title {
+    font-size: 36px;
+    letter-spacing: -1px;
+  }
+
+  .login-intro {
+    font-size: 16px;
+  }
+
+  .login-card {
+    padding: 28px 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-particles {
+    display: none;
+  }
+
+  .login-left,
+  .login-card,
+  .login-kicker,
+  .login-title,
+  .login-rule,
+  .login-intro,
+  .login-features li,
+  .login-card h2,
+  .login-card p.lede,
+  .login-card label,
+  .login-submit,
+  .login-card::before {
+    animation: none !important;
+    transform: none !important;
+  }
+}

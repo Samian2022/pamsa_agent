@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { JOURNEY_STAGES, SIGN_OFF_ITEMS } from "@/lib/stages";
 import { formatRelative } from "@/lib/format";
 import type { Engagement } from "@/lib/types";
@@ -62,6 +63,7 @@ export function LeftSidebar({
   onView: (view: WorkspaceView) => void;
   collapsed?: boolean;
 }) {
+  const router = useRouter();
   const company = engagement.artifacts.selectedCompany;
   const project = company ? `${company} Materiality Study 2026` : engagement.title;
   const issuesCount =
@@ -80,6 +82,12 @@ export function LeftSidebar({
     { id: "signoff", label: `Sign-Off Checklist (${signed}/${SIGN_OFF_ITEMS.length} confirmed)` },
     { id: "chat", label: "Research chat" },
   ];
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+    router.refresh();
+  }
 
   if (collapsed) {
     return (
@@ -102,6 +110,18 @@ export function LeftSidebar({
             {stage.done(engagement.stage) ? "✓" : <Icon name={stage.key} />}
           </span>
         ))}
+        <button
+          type="button"
+          onClick={logout}
+          title="Sign out"
+          aria-label="Sign out"
+          className="focus-ring mt-auto flex h-8 w-8 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <path d="M6 3H4.5A1.5 1.5 0 0 0 3 4.5v7A1.5 1.5 0 0 0 4.5 13H6" stroke="currentColor" />
+            <path d="M7 8h6M10.5 5.5 13 8l-2.5 2.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
       </aside>
     );
   }
@@ -164,6 +184,13 @@ export function LeftSidebar({
             {link.label}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={logout}
+          className="focus-ring mt-3 w-full rounded-lg px-3 py-2 text-left text-[12px] leading-4 text-white/70 transition hover:bg-white/5 hover:text-white"
+        >
+          Sign out
+        </button>
       </nav>
 
       <div className="border-t border-white/10 px-4 py-4">
