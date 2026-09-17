@@ -6,14 +6,19 @@ import { getEngagement, updateEngagement } from "../storage";
 import type {
   Assumption,
   AssumptionCheckpoint,
+  BaselineMetric,
   Citation,
   DataGapEntry,
+  DisclosureChannel,
   DiscoveryCard,
   DiscoveryLogEntry,
   FinancialModel,
   IssueScore,
+  MethodologyGap,
   MethodologyProgress,
+  OperationsItem,
   ProbeEntry,
+  ReconciliationRow,
   ResearchCandidate,
   StageId,
 } from "../types";
@@ -97,7 +102,8 @@ export function createAgentTools(engagementId: string) {
     }),
 
     save_company_snapshot: tool({
-      description: "Save the one-page company snapshot for Stage 2.",
+      description:
+        "Save the Stage 2A one-page snapshot: business model, supply chain, regulation, stakeholders, financials, peers, and known risk areas.",
       inputSchema: z.object({
         businessModel: z.string(),
         supplyChain: z.string(),
@@ -106,6 +112,7 @@ export function createAgentTools(engagementId: string) {
         financialProfile: z.string(),
         peerSet: z.string(),
         knownRiskAreas: z.string(),
+        keyStakeholders: z.string().optional(),
       }),
       execute: async (snapshot) => {
         await updateEngagement(engagementId, (current) => ({
@@ -117,13 +124,17 @@ export function createAgentTools(engagementId: string) {
     }),
 
     save_data_gaps: tool({
-      description: "Save the data-gap inventory (disclosed vs hidden, peer patterns, regulatory vacuum).",
+      description:
+        "Save the Stage 2G data-gap inventory. Include E/S/G rollups when possible. If they do not report a metric, mark it Not disclosed / Unknown.",
       inputSchema: z.object({
         disclosedVsHidden: z.string(),
         inferredFromBenchmarks: z.string(),
         explicitUndisclosures: z.string(),
         peerDisclosurePatterns: z.string(),
         regulatoryVacuum: z.string(),
+        environmental: z.string().optional(),
+        social: z.string().optional(),
+        governance: z.string().optional(),
       }),
       execute: async (dataGaps) => {
         await updateEngagement(engagementId, (current) => ({
@@ -131,6 +142,125 @@ export function createAgentTools(engagementId: string) {
           artifacts: { ...current.artifacts, dataGaps },
         }));
         return { saved: true };
+      },
+    }),
+
+    save_disclosure_audit: tool({
+      description:
+        "Save the Stage 2B disclosure audit. Cover ESG/sustainability report, 10-K or equivalent, last 2-3 earnings calls, regulatory filings, and governance/policy documents.",
+      inputSchema: z.object({
+        channels: z.array(
+          z.object({
+            channel: z.string(),
+            findings: z.string(),
+            gaps: z.string(),
+          }),
+        ),
+      }),
+      execute: async ({ channels }) => {
+        await updateEngagement(engagementId, (current) => ({
+          ...current,
+          artifacts: { ...current.artifacts, disclosureAudit: channels as DisclosureChannel[] },
+        }));
+        return { saved: channels.length };
+      },
+    }),
+
+    save_baseline_metrics: tool({
+      description:
+        "Save the Stage 2C baseline metrics inventory. If a metric is not reported, set baseline to Not disclosed and dataQualityFlag to Unknown/Absent.",
+      inputSchema: z.object({
+        metrics: z.array(
+          z.object({
+            issue: z.string(),
+            companyMetric: z.string(),
+            baseline: z.string(),
+            methodology: z.string(),
+            trend3yr: z.string(),
+            peerComparison: z.string(),
+            esrsMetric: z.string(),
+            dataQualityFlag: z.string(),
+          }),
+        ),
+      }),
+      execute: async ({ metrics }) => {
+        await updateEngagement(engagementId, (current) => ({
+          ...current,
+          artifacts: { ...current.artifacts, baselineMetrics: metrics as BaselineMetric[] },
+        }));
+        return { saved: metrics.length };
+      },
+    }),
+
+    save_methodology_gaps: tool({
+      description:
+        "Save Stage 2D methodology gap analysis vs ESRS/best practice. gapScore 1 is ESRS-aligned and verified; 5 is not disclosed or unknown.",
+      inputSchema: z.object({
+        gaps: z.array(
+          z.object({
+            issue: z.string(),
+            scopeGap: z.string(),
+            measurementGap: z.string(),
+            transparencyGap: z.string(),
+            timelinessGap: z.string(),
+            gapScore: score,
+          }),
+        ),
+      }),
+      execute: async ({ gaps }) => {
+        await updateEngagement(engagementId, (current) => ({
+          ...current,
+          artifacts: { ...current.artifacts, methodologyGaps: gaps as MethodologyGap[] },
+        }));
+        return { saved: gaps.length };
+      },
+    }),
+
+    save_operations_news: tool({
+      description:
+        "Save the Stage 2E 12-month operations and news layer: enforcement, incidents, earnings signals, NGO/litigation, peer and sector trends.",
+      inputSchema: z.object({
+        items: z.array(
+          z.object({
+            theme: z.string(),
+            event: z.string(),
+            companySaid: z.string(),
+            thirdParty: z.string(),
+            gapSignal: z.string(),
+            date: z.string().optional(),
+          }),
+        ),
+      }),
+      execute: async ({ items }) => {
+        await updateEngagement(engagementId, (current) => ({
+          ...current,
+          artifacts: { ...current.artifacts, operationsNews: items as OperationsItem[] },
+        }));
+        return { saved: items.length };
+      },
+    }),
+
+    save_reconciliation: tool({
+      description:
+        "Save the Stage 2F reconciliation matrix: why each likely-material gap is undisclosed, with evidence, confidence, and a probing flag.",
+      inputSchema: z.object({
+        rows: z.array(
+          z.object({
+            issue: z.string(),
+            disclosureStatus: z.string(),
+            likelyReason: z.string(),
+            evidence: z.string(),
+            confidence,
+            flagForProbing: z.boolean(),
+          }),
+        ),
+      }),
+      execute: async ({ rows }) => {
+        await updateEngagement(engagementId, (current) => ({
+          ...current,
+          artifacts: { ...current.artifacts, reconciliation: rows as ReconciliationRow[] },
+        }));
+        return { saved: rows.length };
       },
     }),
 
@@ -155,7 +285,7 @@ export function createAgentTools(engagementId: string) {
     }),
 
     save_discovery_cards: tool({
-      description: "Save discovery cards for undisclosed or emerging issues.",
+      description: "Save discovery cards / risk hypotheses for undisclosed, peer-gap, or emerging issues. Include disclosure vs ESRS and the operations signal when known.",
       inputSchema: z.object({
         cards: z.array(
           z.object({
@@ -167,6 +297,10 @@ export function createAgentTools(engagementId: string) {
             financialMateriality: z.string(),
             impactMateriality: z.string(),
             confidence,
+            companyDisclosure: z.string().optional(),
+            esrsExpectation: z.string().optional(),
+            operationsSignal: z.string().optional(),
+            nextInvestigation: z.string().optional(),
           }),
         ),
       }),
@@ -197,6 +331,9 @@ export function createAgentTools(engagementId: string) {
             recommendedMetric: z.string(),
             dataQuality: z.enum(["certain", "assumption", "gap"]),
             esrs: z.string().optional(),
+            methodologyGapScore: score.optional(),
+            companyJudgment: z.string().optional(),
+            layer: z.enum(["disclosed", "peer-gap", "probed"]).optional(),
           }),
         ),
       }),
@@ -270,6 +407,8 @@ export function createAgentTools(engagementId: string) {
         confidence,
         reaction,
         notes: z.string().optional(),
+        dmaStatus: z.string().optional(),
+        evidenceFromUser: z.string().optional(),
       }),
       execute: async (input) => {
         const entry: DiscoveryLogEntry = {
@@ -296,6 +435,9 @@ export function createAgentTools(engagementId: string) {
         newEvidence: z.string(),
         revisedClaim: z.string(),
         reasoning: z.string(),
+        hypothesis: z.string().optional(),
+        confidenceBefore: confidence.optional(),
+        confidenceAfter: confidence.optional(),
       }),
       execute: async (input) => {
         const entry: ProbeEntry = {

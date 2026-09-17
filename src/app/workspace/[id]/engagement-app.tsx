@@ -28,8 +28,8 @@ function partText(part: UIMessage["parts"][number]) {
 
 function stageTitle(stage: number) {
   if (stage <= 1) return "Find what's hidden";
-  if (stage === 2) return "Map the company";
-  if (stage === 3) return "Score the issues";
+  if (stage === 2) return "Audit what they hide";
+  if (stage === 3) return "Probe, then score";
   if (stage === 4) return "Lock your assessment";
   return "Model the impact";
 }

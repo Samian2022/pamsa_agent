@@ -9,24 +9,24 @@ export function formatRelative(iso: string) {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
-export const SCORE_LABELS = ["", "Negligible", "Minor", "Moderate", "Significant", "Critical"] as const;
+export const SCORE_LABELS = ["", "Negligible", "Minor", "Moderate", "Major", "Critical"] as const;
 
 export const FINANCIAL_BANDS = [
   "",
-  "Could barely move the needle (<0.1% of EBITDA)",
-  "about 0.1% to 0.5% of EBITDA at risk",
-  "about 0.5% to 1.5% of EBITDA at risk",
-  "about 1.5% to 5% of EBITDA at risk",
-  "Could reshape the business (>5% of EBITDA, or existential)",
+  "Negligible: $0-5M, under 0.1% of EBITDA",
+  "Minor: $5-50M, about 0.1-0.5% of EBITDA",
+  "Moderate: $50-200M, about 0.5-2% of EBITDA",
+  "Major: $200M-1B, about 2-10% of EBITDA",
+  "Critical: over $1B, over 10% of EBITDA, or business-model risk",
 ] as const;
 
 export const IMPACT_BANDS = [
   "",
-  "Affects few, briefly",
-  "Limited stakeholder harm, mostly reversible",
-  "Material for a defined group",
-  "Serious harm for many stakeholders",
-  "Affects many, deeply",
+  "Low: niche interest, no regulatory trend",
+  "Emerging: growing NGO attention, some regulatory signals",
+  "Moderate: investor pressure, regulation in 3-5 years",
+  "High: major investor focus, regulation in 1-3 years",
+  "Critical: regulation in force, business-model pressure",
 ] as const;
 
 export function confidencePercent(value: string) {

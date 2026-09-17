@@ -37,6 +37,51 @@ export type CompanySnapshot = {
   financialProfile: string;
   peerSet: string;
   knownRiskAreas: string;
+  keyStakeholders?: string;
+};
+
+export type DisclosureChannel = {
+  channel: string;
+  findings: string;
+  gaps: string;
+};
+
+export type BaselineMetric = {
+  issue: string;
+  companyMetric: string;
+  baseline: string;
+  methodology: string;
+  trend3yr: string;
+  peerComparison: string;
+  esrsMetric: string;
+  dataQualityFlag: string;
+};
+
+export type MethodologyGap = {
+  issue: string;
+  scopeGap: string;
+  measurementGap: string;
+  transparencyGap: string;
+  timelinessGap: string;
+  gapScore: number;
+};
+
+export type OperationsItem = {
+  theme: string;
+  event: string;
+  companySaid: string;
+  thirdParty: string;
+  gapSignal: string;
+  date?: string;
+};
+
+export type ReconciliationRow = {
+  issue: string;
+  disclosureStatus: string;
+  likelyReason: string;
+  evidence: string;
+  confidence: Confidence;
+  flagForProbing: boolean;
 };
 
 export type DataGapInventory = {
@@ -45,6 +90,9 @@ export type DataGapInventory = {
   explicitUndisclosures: string;
   peerDisclosurePatterns: string;
   regulatoryVacuum: string;
+  environmental?: string;
+  social?: string;
+  governance?: string;
 };
 
 export type Stakeholder = {
@@ -62,6 +110,10 @@ export type DiscoveryCard = {
   financialMateriality: string;
   impactMateriality: string;
   confidence: Confidence;
+  companyDisclosure?: string;
+  esrsExpectation?: string;
+  operationsSignal?: string;
+  nextInvestigation?: string;
 };
 
 export type IssueScore = {
@@ -78,6 +130,9 @@ export type IssueScore = {
   recommendedMetric: string;
   dataQuality: DataQuality;
   esrs?: string;
+  methodologyGapScore?: number;
+  companyJudgment?: string;
+  layer?: "disclosed" | "peer-gap" | "probed";
 };
 
 export type Assumption = {
@@ -106,6 +161,8 @@ export type DiscoveryLogEntry = {
   confidence: Confidence;
   reaction: UserReaction;
   notes?: string;
+  dmaStatus?: string;
+  evidenceFromUser?: string;
 };
 
 export type ProbeEntry = {
@@ -116,6 +173,9 @@ export type ProbeEntry = {
   newEvidence: string;
   revisedClaim: string;
   reasoning: string;
+  hypothesis?: string;
+  confidenceBefore?: Confidence;
+  confidenceAfter?: Confidence;
 };
 
 export type DataGapEntry = {
@@ -177,6 +237,11 @@ export type Artifacts = {
   selectedCompany?: string;
   snapshot?: CompanySnapshot;
   dataGaps?: DataGapInventory;
+  disclosureAudit?: DisclosureChannel[];
+  baselineMetrics?: BaselineMetric[];
+  methodologyGaps?: MethodologyGap[];
+  operationsNews?: OperationsItem[];
+  reconciliation?: ReconciliationRow[];
   stakeholders?: Stakeholder[];
   discoveryCards?: DiscoveryCard[];
   issueScores?: IssueScore[];

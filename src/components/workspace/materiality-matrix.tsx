@@ -129,10 +129,10 @@ export function MaterialityMatrix({
         {compact ? null : (
           <>
             <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-ink-soft">
-              Financial materiality: could barely move the needle → could reshape the business
+              Financial materiality: under 0.1% of EBITDA → over 10% or business-model risk
             </span>
             <span className="absolute left-2 top-1/2 origin-left -rotate-90 text-[10px] text-ink-soft">
-              Impact materiality: affects few, briefly → affects many, deeply
+              Impact materiality: niche interest → regulation in force
             </span>
           </>
         )}
@@ -141,4 +141,4 @@ export function MaterialityMatrix({
   );
 }
 
-const FINANCIAL_HINT = ["", "<0.1% of EBITDA", "~0.3% of EBITDA", "~1% of EBITDA", "~3% of EBITDA", ">5% of EBITDA"];
+const FINANCIAL_HINT = ["", "<0.1% EBITDA", "0.1-0.5% EBITDA", "0.5-2% EBITDA", "2-10% EBITDA", ">10% EBITDA"];

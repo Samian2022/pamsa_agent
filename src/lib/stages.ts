@@ -10,15 +10,15 @@ export const STAGES: { id: StageId; name: string; short: string; gate: string }[
     },
     {
       id: 2,
-      name: "Company Profiling",
-      short: "Profile",
-      gate: "User confirms the snapshot and data-gap inventory.",
+      name: "Disclosure Audit",
+      short: "Audit",
+      gate: "User confirms the snapshot, disclosure audit, baselines, methodology gaps, operations layer, and data-gap inventory.",
     },
     {
       id: 3,
-      name: "DMA Discovery",
-      short: "DMA",
-      gate: "User validates scoring, discovery cards, and the matrix.",
+      name: "Probing and DMA",
+      short: "Probe",
+      gate: "User probes risk hypotheses, then validates three-layer scores and the matrix.",
     },
     {
       id: 4,
@@ -50,47 +50,47 @@ export const SIGN_OFF_ITEMS: { id: string; label: string; description: string }[
   {
     id: "stakeholders",
     label: "Stakeholder map complete",
-    description: "All material stakeholders identified and their concerns mapped.",
+    description: "Investors, regulators, customers, communities, employees, suppliers, and NGOs are identified, with what they care about.",
   },
   {
     id: "disclosed-issues",
-    label: "Issues identified and prioritized",
-    description: "Material issues scored and ranked, including disclosed issues and undisclosed risks.",
+    label: "Issue selection locked",
+    description: "A final set of 3 to 6 material issues is locked, mixing disclosed issues and undisclosed risks.",
   },
   {
     id: "undisclosed-issues",
     label: "Undisclosed risks investigated",
-    description: "Every blind spot from peer benchmark and regulatory scan has been researched and probed.",
+    description: "For each undisclosed risk, evidence quality and confidence were assessed, and you decided include or monitor.",
   },
   {
     id: "methodology",
     label: "Scoring methodology agreed",
-    description: "You understand and accept the 1 to 5 scales for financial and impact materiality.",
+    description: "You accept the 1 to 5 financial and impact scales, including dollar and EBITDA bands, and they were applied consistently.",
   },
   {
     id: "top-issues",
-    label: "Top issues ranked",
-    description: "Top-scored issues, including newly discovered ones, are locked in your assessment.",
+    label: "Final issues ranked",
+    description: "Top-scored issues, including newly discovered ones, are ranked and locked in your assessment.",
   },
   {
     id: "data-gaps",
     label: "Data gaps documented",
-    description: "Remaining gaps are listed with source, impact on the assessment, and a plan to fill them. They do not have to be closed yet.",
+    description: "For each issue you recorded what the company measures, what ESRS expects, and what exists externally. Gaps do not have to be closed yet.",
   },
   {
     id: "obscured",
     label: "Probing complete",
-    description: "You have challenged or confirmed every hypothesis. The discovery log shows your engagement, and no known obscured issue is left unflagged.",
+    description: "Major hypotheses were tested with you. Confidence levels are validated. The discovery and probing logs show your engagement.",
   },
   {
     id: "metrics",
     label: "Metrics selected and mapped",
-    description: "Each material issue has a recommended metric (ESRS or custom). You have agreed on the measurement approach.",
+    description: "Each material issue has an ESRS-aligned metric (or a justified custom metric) plus a data source: company report, filing, or external estimate.",
   },
   {
     id: "pnl-pathways",
     label: "Ready to model",
-    description: "You are confident enough to model financial impacts for 2 to 4 top issues.",
+    description: "At least 2 to 4 issues have clear P&L pathways (cost, revenue, WACC, or capex) and enough baseline data to build scenarios.",
   },
 ];
 
@@ -104,15 +104,15 @@ export const JOURNEY_STAGES = [
   },
   {
     key: "profile",
-    name: "Profile",
-    line: "Map the company",
+    name: "Audit",
+    line: "What they hide",
     active: (stage: number) => stage === 2,
     done: (stage: number) => stage > 2,
   },
   {
     key: "dma",
     name: "DMA Draft",
-    line: "Score the issues",
+    line: "Probe, then score",
     active: (stage: number) => stage === 3,
     done: (stage: number) => stage > 3,
   },
@@ -175,28 +175,34 @@ export function canEnterStage(
 
 export function buildContextSummary(engagement: Engagement): string {
   const stage = STAGES.find((item) => item.id === engagement.stage);
+  const company = engagement.artifacts.selectedCompany || "no company yet";
+  const accepted = engagement.discoveryLog.filter((item) => item.reaction === "accepted");
+  const disputed = engagement.discoveryLog.filter((item) => item.reaction === "disputed");
+  const flagged = engagement.discoveryLog.filter((item) => item.reaction === "deeper-investigation");
+  const hypothesisCount =
+    engagement.artifacts.discoveryCards?.length ||
+    engagement.artifacts.reconciliation?.length ||
+    engagement.discoveryLog.length;
+  const next =
+    engagement.stage <= 1
+      ? "researching candidates"
+      : engagement.stage === 2
+        ? "finishing the disclosure audit"
+        : engagement.stage === 3
+          ? "probing hypotheses and scoring the DMA"
+          : engagement.stage === 4
+            ? "locking sign-off"
+            : engagement.stage === 5
+              ? "scoping pricing models"
+              : engagement.stage === 6
+                ? "teaching model methodology"
+                : "building pricing models";
+
   const locked = [
-    engagement.artifacts.selectedCompany
-      ? `Company: ${engagement.artifacts.selectedCompany}`
-      : null,
-    engagement.discoveryLog.filter((item) => item.reaction === "accepted").length
-      ? `Accepted issues: ${engagement.discoveryLog
-          .filter((item) => item.reaction === "accepted")
-          .map((item) => item.issue)
-          .join("; ")}`
-      : null,
-    engagement.discoveryLog.filter((item) => item.reaction === "disputed").length
-      ? `Disputed: ${engagement.discoveryLog
-          .filter((item) => item.reaction === "disputed")
-          .map((item) => item.issue)
-          .join("; ")}`
-      : null,
-    engagement.discoveryLog.filter((item) => item.reaction === "deeper-investigation").length
-      ? `Flagged for deeper look: ${engagement.discoveryLog
-          .filter((item) => item.reaction === "deeper-investigation")
-          .map((item) => item.issue)
-          .join("; ")}`
-      : null,
+    engagement.artifacts.selectedCompany ? `Company: ${company}` : null,
+    accepted.length ? `Locked for DMA: ${accepted.map((item) => item.issue).join("; ")}` : null,
+    disputed.length ? `Disputed: ${disputed.map((item) => item.issue).join("; ")}` : null,
+    flagged.length ? `Monitor / deeper look: ${flagged.map((item) => item.issue).join("; ")}` : null,
     engagement.probeLog.length
       ? `Latest probe: ${engagement.probeLog[engagement.probeLog.length - 1]?.revisedClaim}`
       : null,
@@ -205,29 +211,34 @@ export function buildContextSummary(engagement: Engagement): string {
       : null,
   ].filter(Boolean);
 
-  const lastDiscovery = engagement.discoveryLog.at(-1);
-  const lastProbe = engagement.probeLog.at(-1);
-  const lastBits = [
-    lastDiscovery ? `surfaced "${lastDiscovery.issue}"` : null,
-    lastProbe ? `revised a claim after challenge` : null,
-    engagement.dataGapLog.some((item) => item.status === "open")
-      ? `left open data gaps`
+  const confidenceBits = accepted
+    .slice(0, 4)
+    .map((item) => `${item.issue} (${item.confidence})`);
+  const auditBits = [
+    engagement.artifacts.disclosureAudit?.length
+      ? `${engagement.artifacts.disclosureAudit.length} disclosure channels`
       : null,
+    engagement.artifacts.operationsNews?.length
+      ? `${engagement.artifacts.operationsNews.length} operations/news signals`
+      : null,
+    hypothesisCount ? `${hypothesisCount} hypotheses surfaced` : null,
   ].filter(Boolean);
 
-  return `Last time we ${lastBits.length ? lastBits.join(", and ") : "had not yet locked findings"}. Today we are continuing at Stage ${engagement.stage} (${stage?.name || "unknown"}). Locked in so far: ${locked.length ? locked.join(". ") : "nothing locked yet"}. Questions or changes to previous findings before we move forward?`;
+  return `Last time we profiled ${company}. We identified ${hypothesisCount || 0} material issues via ESG audit, recent operations, and probing${auditBits.length ? ` (${auditBits.join("; ")})` : ""}. We locked ${accepted.length} issues for DMA, flagged ${flagged.length + disputed.length} for later review. Today we are ${next} at Stage ${engagement.stage} (${stage?.name || "unknown"}). Confirmed so far: ${locked.length ? locked.join(". ") : "nothing locked yet"}${confidenceBits.length ? `. Confidence: ${confidenceBits.join("; ")}` : ""}. Any updates since last time, or shall we proceed?`;
 }
 
-export const OPENING_MESSAGE = `Hi, I am your Double Materiality and Pricing Model Agent. I will help you research companies, build a DMA you can defend, and find materiality issues companies are not disclosing. You can probe and challenge every finding. I will also teach you how to build pricing models so you understand the mechanics rather than receiving a black box. I keep a full history of this investigation so we build on what we already discovered together.
+export const OPENING_MESSAGE = `I am your research orchestrator for PAMSA, the double materiality assessment workspace. I am here to guide you through discovery, not to hand you a finished matrix.
 
-Start by telling me your search criteria. Answer as many of these as you can, even in rough form:
+Here is how we work: I will research the company's disclosures (ESG report, 10-K, earnings, regulatory filings), surface what they measure and what they do not, test my hypotheses against what you know from the inside, and then we will lock a DMA together. After that, we will build pricing models for the material issues that have real financial pathways.
 
-1) Industry or sector? (for example sustainability-driven consumer, mining, African fintech, apparel, food and agri)
-2) Geographic focus? (global, a region such as Sub-Saharan Africa or Southeast Asia, or a specific country)
-3) Scale? (public large cap, private, family-office portfolio, SME)
-4) Any constraints? (sectors to avoid, CSRD filers only, B2B only, no commodities)
-5) Blind spot interest? (hunt hard for undisclosed and emerging issues, or stay closer to what the company already reports)
-6) Prior DMA work? (starting fresh, or refining an assessment you already have)
-7) Pricing model preference? (I build the models and explain every line; you build them while I coach; or a hybrid where I draft and we walk through it together)
+Before we start, I have seven quick questions so I can research the right candidates:
 
-Once I understand what you want, I will research five to seven candidates, including what they are not disclosing, and you pick. Then we build the DMA together. You probe and validate every issue I surface. When we reach pricing models, we either build them step by step or I build them and teach the framework first, based on the preference you set above.`;
+1) Sector? (Any sector interest, or something specific: consumer, energy, materials, financials?)
+2) Geography? (Global company? Specific emerging-market exposure?)
+3) Company scale? (Revenue range, market cap, or just large cap?)
+4) Any constraints? (Avoid certain companies? Only CSRD filers? Only listed on specific exchanges?)
+5) Disclosure maturity preference? (Well-documented companies, or underdisclosed companies where we dig deeper?)
+6) Prior DMA work? (Have you or your team done a materiality assessment on any company already?)
+7) Pricing model preference? (Cost, revenue, WACC, capital intensity, any preference, or let's see what the issues suggest? I can build, you can build with coaching, or we can hybrid.)
+
+Once you answer, I will research five to seven candidates and present a ranked table with data availability, disclosure clarity, and blind-spot estimates. You pick one, and we dig in.`;

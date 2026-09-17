@@ -124,7 +124,7 @@ export function HypothesisCards({
       <div>
         <PanelHeader
           title="Potential material issues"
-          subtitle="These risks are either undisclosed by the company, emerging from regulation, or flagged by peers. Your job: confirm or dispute each one."
+          subtitle="These hypotheses come from the disclosure audit, peer gaps, and the last 12 months of operations. Confirm, dispute, monitor, or skip. There is no cap on how many we can probe."
         />
         <p className="text-sm text-ink-soft">Pick an issue above. Move the sliders. Build your assessment.</p>
       </div>
@@ -132,10 +132,10 @@ export function HypothesisCards({
   }
   return (
     <div className="space-y-3">
-      <PanelHeader
-        title="Potential material issues"
-        subtitle="These risks are either undisclosed by the company, emerging from regulation, or flagged by peers. Your job: confirm or dispute each one."
-      />
+        <PanelHeader
+          title="Potential material issues"
+          subtitle="These hypotheses come from the disclosure audit, peer gaps, and the last 12 months of operations. Confirm, dispute, monitor, or skip. There is no cap on how many we can probe."
+        />
       {cards.map((card, index) => {
         const reaction = engagement.discoveryLog.find((item) => item.issue === card.issue)?.reaction;
         const tag =
@@ -158,6 +158,9 @@ export function HypothesisCards({
               <div className="min-w-0">
                 <h3 className="serif text-[16px] text-forest">{card.issue}</h3>
                 <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-ink-soft">{card.definition}</p>
+                {card.companyDisclosure ? (
+                  <p className="mt-1 line-clamp-1 text-[12px] text-ink-soft">Discloses: {card.companyDisclosure}</p>
+                ) : null}
                 <span className="mt-2 inline-block text-[11px] uppercase tracking-wide text-rust">{tag}</span>
               </div>
               <div className="flex flex-col items-end gap-2">
@@ -180,12 +183,17 @@ export function HypothesisCards({
 export function ProfileView({ engagement }: { engagement: Engagement }) {
   const snap = engagement.artifacts.snapshot;
   const gaps = engagement.artifacts.dataGaps;
+  const audit = engagement.artifacts.disclosureAudit || [];
+  const baselines = engagement.artifacts.baselineMetrics || [];
+  const methodGaps = engagement.artifacts.methodologyGaps || [];
+  const ops = engagement.artifacts.operationsNews || [];
+  const recon = engagement.artifacts.reconciliation || [];
   const [open, setOpen] = useState("disclosed");
-  if (!snap && !gaps) {
+  if (!snap && !gaps && !audit.length && !baselines.length) {
     return (
       <div>
-        <PanelHeader title="Map the company" subtitle="Lock the snapshot. Document what the company will not name." />
-        <p className="text-sm text-ink-soft">After you pick a company, the snapshot and data-gap inventory lock here.</p>
+        <PanelHeader title="Audit the company" subtitle="Lock the snapshot. Document what they disclose, how they measure it, and what the last 12 months show they should be monitoring." />
+        <p className="text-sm text-ink-soft">After you pick a company, the disclosure audit, baselines, methodology gaps, and operations layer lock here.</p>
       </div>
     );
   }
@@ -200,13 +208,102 @@ export function ProfileView({ engagement }: { engagement: Engagement }) {
               ["Supply chain", snap.supplyChain],
               ["Regulatory exposure", snap.regulatoryExposure],
               ["ESG disclosure", snap.currentEsgDisclosure],
-            ].map(([label, value]) => (
+              ["Financial snapshot", snap.financialProfile],
+              ["Peer set", snap.peerSet],
+              ["Stakeholders", snap.keyStakeholders],
+              ["Known risk areas", snap.knownRiskAreas],
+            ]
+              .filter(([, value]) => value)
+              .map(([label, value]) => (
               <div key={label}>
                 <dt className="text-[10px] uppercase tracking-[0.14em] text-taupe">{label}</dt>
                 <dd className="mt-1 text-ink-soft">{value}</dd>
               </div>
             ))}
           </dl>
+        </div>
+      ) : null}
+      {audit.length ? (
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-[0.14em] text-forest">Disclosure audit</p>
+          {audit.map((item) => (
+            <div key={item.channel} className="rounded-xl border border-[var(--line)] bg-white px-4 py-3">
+              <p className="text-[13px] font-medium text-forest">{item.channel}</p>
+              <p className="mt-1 text-[13px] text-ink-soft">{item.findings}</p>
+              <p className="mt-1 text-[12px] text-rust">Gaps: {item.gaps}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {baselines.length ? (
+        <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-white">
+          <p className="px-4 pt-3 text-[10px] uppercase tracking-[0.14em] text-forest">Baseline metrics</p>
+          <table className="mt-2 min-w-full text-left text-[12px]">
+            <thead>
+              <tr className="text-[10px] uppercase tracking-[0.12em] text-taupe">
+                <th className="px-4 py-2">Issue</th>
+                <th className="px-2 py-2">Metric</th>
+                <th className="px-2 py-2">Baseline</th>
+                <th className="px-2 py-2">ESRS</th>
+                <th className="px-4 py-2">Quality</th>
+              </tr>
+            </thead>
+            <tbody>
+              {baselines.map((row) => (
+                <tr key={row.issue} className="border-t border-[var(--line)]">
+                  <td className="px-4 py-2 text-forest">{row.issue}</td>
+                  <td className="px-2 py-2 text-ink-soft">{row.companyMetric}</td>
+                  <td className="px-2 py-2 text-ink-soft">{row.baseline}</td>
+                  <td className="px-2 py-2 font-mono text-[11px]">{row.esrsMetric}</td>
+                  <td className="px-4 py-2 text-ink-soft">{row.dataQualityFlag}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+      {methodGaps.length ? (
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-[0.14em] text-forest">Methodology gaps</p>
+          {methodGaps.map((item) => (
+            <div key={item.issue} className="rounded-xl border border-[var(--line)] bg-white px-4 py-3 text-[13px]">
+              <p className="font-medium text-forest">
+                {item.issue} <span className="ml-2 text-[11px] text-taupe">gap {item.gapScore}/5</span>
+              </p>
+              <p className="mt-1 text-ink-soft">Scope: {item.scopeGap}</p>
+              <p className="text-ink-soft">Measurement: {item.measurementGap}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {ops.length ? (
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-[0.14em] text-forest">12-month operations and news</p>
+          {ops.map((item, index) => (
+            <div key={`${item.theme}-${index}`} className="rounded-xl border-l-[2px] border-amber bg-white px-4 py-3 text-[13px]">
+              <p className="text-[11px] uppercase tracking-wide text-taupe">
+                {item.theme}
+                {item.date ? ` · ${item.date}` : ""}
+              </p>
+              <p className="mt-1 font-medium text-forest">{item.event}</p>
+              <p className="mt-1 text-ink-soft">{item.gapSignal}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {recon.length ? (
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-[0.14em] text-forest">Why is this undisclosed?</p>
+          {recon.map((item) => (
+            <div key={item.issue} className="rounded-xl border border-[var(--line)] bg-white px-4 py-3 text-[13px]">
+              <p className="font-medium text-forest">{item.issue}</p>
+              <p className="mt-1 text-ink-soft">{item.likelyReason}</p>
+              <p className="mt-1 text-[12px] text-taupe">
+                {item.disclosureStatus} · {item.confidence}
+                {item.flagForProbing ? " · Flag for probing" : ""}
+              </p>
+            </div>
+          ))}
         </div>
       ) : null}
       {gaps ? (
@@ -218,8 +315,13 @@ export function ProfileView({ engagement }: { engagement: Engagement }) {
               ["undisclosed", "Explicit undisclosures", gaps.explicitUndisclosures],
               ["peer", "Peer disclosure patterns", gaps.peerDisclosurePatterns],
               ["reg", "Regulatory vacuum", gaps.regulatoryVacuum],
+              ["env", "Environmental", gaps.environmental],
+              ["soc", "Social", gaps.social],
+              ["gov", "Governance", gaps.governance],
             ] as const
-          ).map(([id, label, value]) => (
+          )
+            .filter(([, , value]) => value)
+            .map(([id, label, value]) => (
             <button
               key={id}
               type="button"

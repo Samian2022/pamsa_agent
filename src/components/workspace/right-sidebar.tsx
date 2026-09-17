@@ -80,11 +80,25 @@ export function RightSidebar({
           <section className="animate-slide-right space-y-3 rounded-xl border border-sage/25 bg-white p-3">
             <p className="text-[12px] text-ink-soft">Let's test this finding together. Do you agree this is material?</p>
             <p className="text-[12px]">
+              <span className="font-medium">What they disclose: </span>
+              {card?.companyDisclosure || score?.disclosureStatus || "Not yet mapped."}
+            </p>
+            <p className="text-[12px]">
+              <span className="font-medium">ESRS / best practice: </span>
+              {card?.esrsExpectation || score?.esrs || "Assign a metric after probing."}
+            </p>
+            <p className="text-[12px]">
               <span className="font-medium">Agent proposes: </span>
               {card?.whyExposure || score?.financialEvidence || "Waiting on evidence."}{" "}
               {score?.disclosed === false ? "The company is silent on this. " : ""}
               Estimated financial materiality: {score ? `F${score.financialScore} / I${score.impactScore}` : "not yet scored"}.
             </p>
+            {card?.operationsSignal ? (
+              <p className="text-[12px] text-ink-soft">
+                <span className="font-medium">Operations signal: </span>
+                {card.operationsSignal}
+              </p>
+            ) : null}
             <p className="text-[12px] text-ink-soft">
               This issue surfaced from {discovery?.source || card?.evidence || "research in this engagement"}.
               Confidence: {confidencePercent(confidence)}%. Your input shapes the final assessment.
@@ -96,7 +110,7 @@ export function RightSidebar({
             ) : discovery?.notes ? (
               <p className="text-[12px] text-amber">Your previous reaction: {discovery.notes}</p>
             ) : null}
-            <p className="text-[12px] text-teal">{nextStep}</p>
+            <p className="text-[12px] text-teal">{card?.nextInvestigation || nextStep}</p>
           </section>
         )}
 

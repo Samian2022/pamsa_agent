@@ -50,9 +50,10 @@ export async function buildEngagementWorkbook(engagement: Engagement) {
   const method = workbook.addWorksheet("Methodology");
   addHeader(method, "Methodology", "Scoring framework, stakeholders, sources, gap analysis");
   method.addRow([]);
-  method.addRow(["Impact 1–5", "Negligible → Critical (company ON people/planet)"]);
-  method.addRow(["Financial 1–5", "Negligible <0.1% EBITDA → Critical >5% or existential"]);
-  method.addRow(["Disclosed vs undisclosed", "Solid vs outlined in the matrix; undisclosed issues are inferred"]);
+  method.addRow(["Impact 1-5", "Low (niche) → Critical (regulation in force / business-model pressure)"]);
+  method.addRow(["Financial 1-5", "Negligible under 0.1% EBITDA → Critical over 10% EBITDA or business-model threat"]);
+  method.addRow(["Methodology gap 1-5", "1 ESRS-aligned and verified → 5 not disclosed or unknown"]);
+  method.addRow(["Disclosed vs undisclosed", "Sage disclosed; rust undisclosed material; amber disputed/partial; teal upside"]);
   method.addRow(["Confidence", "High = documented; Medium = peer/sector inference; Low = assumption"]);
   method.columns = [{ width: 28 }, { width: 90 }];
 
@@ -106,6 +107,7 @@ export async function buildEngagementWorkbook(engagement: Engagement) {
   snapshot.addRow(["Financial profile", snap?.financialProfile || ""]);
   snapshot.addRow(["Peer set", snap?.peerSet || ""]);
   snapshot.addRow(["Known risk areas", snap?.knownRiskAreas || ""]);
+  snapshot.addRow(["Key stakeholders", snap?.keyStakeholders || ""]);
   snapshot.columns = [{ width: 28 }, { width: 100 }];
 
   const gaps = workbook.addWorksheet("Data Gaps");
@@ -117,7 +119,92 @@ export async function buildEngagementWorkbook(engagement: Engagement) {
   gaps.addRow(["Explicit undisclosures", dg?.explicitUndisclosures || ""]);
   gaps.addRow(["Peer disclosure patterns", dg?.peerDisclosurePatterns || ""]);
   gaps.addRow(["Regulatory vacuum", dg?.regulatoryVacuum || ""]);
+  gaps.addRow(["Environmental rollup", dg?.environmental || ""]);
+  gaps.addRow(["Social rollup", dg?.social || ""]);
+  gaps.addRow(["Governance rollup", dg?.governance || ""]);
   gaps.columns = [{ width: 28 }, { width: 100 }];
+
+  const audit = workbook.addWorksheet("Disclosure Audit");
+  addHeader(audit, "Stage 2B disclosure audit");
+  audit.addRow([]);
+  audit.addRow(["Channel", "Findings", "Gaps"]);
+  styleHeaderRow(audit, 4);
+  for (const row of engagement.artifacts.disclosureAudit || []) {
+    audit.addRow([row.channel, row.findings, row.gaps]);
+  }
+  audit.columns = [{ width: 28 }, { width: 70 }, { width: 70 }];
+
+  const baselines = workbook.addWorksheet("Baseline Metrics");
+  addHeader(baselines, "Stage 2C baseline metrics");
+  baselines.addRow([]);
+  baselines.addRow([
+    "Issue",
+    "Company metric",
+    "Baseline",
+    "Methodology / scope",
+    "3-yr trend",
+    "Peer comparison",
+    "ESRS metric",
+    "Data quality",
+  ]);
+  styleHeaderRow(baselines, 4);
+  for (const row of engagement.artifacts.baselineMetrics || []) {
+    baselines.addRow([
+      row.issue,
+      row.companyMetric,
+      row.baseline,
+      row.methodology,
+      row.trend3yr,
+      row.peerComparison,
+      row.esrsMetric,
+      row.dataQualityFlag,
+    ]);
+  }
+  baselines.columns = Array.from({ length: 8 }, () => ({ width: 22 }));
+
+  const methodGaps = workbook.addWorksheet("Methodology Gaps");
+  addHeader(methodGaps, "Stage 2D methodology gaps vs ESRS");
+  methodGaps.addRow([]);
+  methodGaps.addRow(["Issue", "Scope", "Measurement", "Transparency", "Timeliness", "Gap score"]);
+  styleHeaderRow(methodGaps, 4);
+  for (const row of engagement.artifacts.methodologyGaps || []) {
+    methodGaps.addRow([
+      row.issue,
+      row.scopeGap,
+      row.measurementGap,
+      row.transparencyGap,
+      row.timelinessGap,
+      row.gapScore,
+    ]);
+  }
+  methodGaps.columns = Array.from({ length: 6 }, () => ({ width: 28 }));
+
+  const ops = workbook.addWorksheet("Operations News");
+  addHeader(ops, "Stage 2E 12-month operations and news");
+  ops.addRow([]);
+  ops.addRow(["Date", "Theme", "Event", "Company said", "Third party", "Gap signal"]);
+  styleHeaderRow(ops, 4);
+  for (const row of engagement.artifacts.operationsNews || []) {
+    ops.addRow([row.date || "", row.theme, row.event, row.companySaid, row.thirdParty, row.gapSignal]);
+  }
+  ops.columns = Array.from({ length: 6 }, () => ({ width: 28 }));
+
+  const recon = workbook.addWorksheet("Reconciliation");
+  addHeader(recon, "Stage 2F why is this undisclosed");
+  recon.addRow([]);
+  recon.addRow(["Issue", "Disclosure status", "Likely reason", "Evidence", "Confidence", "Flag for probing"]);
+  styleHeaderRow(recon, 4);
+  for (const row of engagement.artifacts.reconciliation || []) {
+    recon.addRow([
+      row.issue,
+      row.disclosureStatus,
+      row.likelyReason,
+      row.evidence,
+      row.confidence,
+      row.flagForProbing ? "Yes" : "No",
+    ]);
+  }
+  recon.columns = Array.from({ length: 6 }, () => ({ width: 28 }));
 
   const stakeholders = workbook.addWorksheet("Stakeholders");
   addHeader(stakeholders, "Stakeholder map");
@@ -146,6 +233,9 @@ export async function buildEngagementWorkbook(engagement: Engagement) {
     "Metric",
     "Data quality",
     "ESRS",
+    "Method gap",
+    "Company judgment",
+    "Layer",
   ]);
   styleHeaderRow(matrix, 4);
   for (const row of engagement.artifacts.issueScores || []) {
@@ -163,9 +253,12 @@ export async function buildEngagementWorkbook(engagement: Engagement) {
       row.recommendedMetric,
       row.dataQuality,
       row.esrs || "",
+      row.methodologyGapScore ?? "",
+      row.companyJudgment || "",
+      row.layer || "",
     ]);
   }
-  matrix.columns = Array.from({ length: 13 }, () => ({ width: 22 }));
+  matrix.columns = Array.from({ length: 16 }, () => ({ width: 22 }));
 
   const disclosed = workbook.addWorksheet("Disclosed Issues");
   addHeader(disclosed, "Disclosed issues");
@@ -195,6 +288,9 @@ export async function buildEngagementWorkbook(engagement: Engagement) {
     "Financial path",
     "Impact path",
     "Confidence",
+    "What they disclose",
+    "ESRS expectation",
+    "Operations signal",
   ]);
   styleHeaderRow(undisclosed, 4);
   for (const row of engagement.artifacts.discoveryCards || []) {
@@ -207,9 +303,12 @@ export async function buildEngagementWorkbook(engagement: Engagement) {
       row.financialMateriality,
       row.impactMateriality,
       row.confidence,
+      row.companyDisclosure || "",
+      row.esrsExpectation || "",
+      row.operationsSignal || "",
     ]);
   }
-  undisclosed.columns = Array.from({ length: 8 }, () => ({ width: 28 }));
+  undisclosed.columns = Array.from({ length: 11 }, () => ({ width: 28 }));
 
   const esrs = workbook.addWorksheet("Metrics ESRS");
   addHeader(esrs, "Metrics & ESRS alignment");
