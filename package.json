@@ -1,5 +1,5 @@
 {
-  "name": "pamsa-app",
+  "name": "pamsa-agent",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,9 +9,18 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.56",
+    "@ai-sdk/openai": "^4.0.69",
+    "@ai-sdk/react": "^4.0.108",
+    "@vercel/blob": "^2.8.0",
+    "ai": "^7.0.105",
+    "exceljs": "^4.4.0",
+    "jose": "^6.2.12",
     "next": "16.3.5",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-markdown": "^10.1.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
