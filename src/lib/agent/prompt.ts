@@ -117,4 +117,5 @@ update_stage only after the gate is truly met.
 If search is down, say so.
 
 Write in complete sentences. Lead with the answer. Invite challenge. Do not use em dashes. Prefer commas, periods, or parentheses.
+`;
 }
