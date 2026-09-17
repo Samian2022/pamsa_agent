@@ -46,44 +46,91 @@ export const STAGES: { id: StageId; name: string; short: string; gate: string }[
     },
   ];
 
-export const SIGN_OFF_ITEMS: { id: string; label: string }[] = [
+export const SIGN_OFF_ITEMS: { id: string; label: string; description: string }[] = [
   {
     id: "stakeholders",
-    label: "Stakeholder map and gaps identified",
+    label: "Stakeholder map complete",
+    description: "All material stakeholders identified and their concerns mapped.",
   },
   {
     id: "disclosed-issues",
-    label: "Disclosed issue selection and scoring",
+    label: "Issues identified and prioritized",
+    description: "Material issues scored and ranked, including disclosed issues and undisclosed risks.",
   },
   {
     id: "undisclosed-issues",
-    label: "Undisclosed / emerging issue identification",
+    label: "Undisclosed risks investigated",
+    description: "Every blind spot from peer benchmark and regulatory scan has been researched and probed.",
   },
   {
     id: "methodology",
-    label: "Scoring methodology (1–5 scales)",
+    label: "Scoring methodology agreed",
+    description: "You understand and accept the 1 to 5 scales for financial and impact materiality.",
   },
   {
     id: "top-issues",
-    label: "Top-scored issues, including newly discovered ones",
-  },
-  {
-    id: "metrics",
-    label: "Metrics selected, including new metrics for undisclosed issues",
+    label: "Top issues ranked",
+    description: "Top-scored issues, including newly discovered ones, are locked in your assessment.",
   },
   {
     id: "data-gaps",
-    label: "Data gaps reviewed; primary research needs noted",
+    label: "Data gaps documented",
+    description: "Remaining gaps are listed with source, impact on the assessment, and a plan to fill them. They do not have to be closed yet.",
   },
   {
     id: "obscured",
-    label: "No known deliberately obscured issues left unflagged",
+    label: "Probing complete",
+    description: "You have challenged or confirmed every hypothesis. The discovery log shows your engagement, and no known obscured issue is left unflagged.",
+  },
+  {
+    id: "metrics",
+    label: "Metrics selected and mapped",
+    description: "Each material issue has a recommended metric (ESRS or custom). You have agreed on the measurement approach.",
   },
   {
     id: "pnl-pathways",
-    label: "Clearest P&L pathways identified for pricing models",
+    label: "Ready to model",
+    description: "You are confident enough to model financial impacts for 2 to 4 top issues.",
   },
 ];
+
+export const JOURNEY_STAGES = [
+  {
+    key: "research",
+    name: "Research",
+    line: "Find what's hidden",
+    active: (stage: number) => stage <= 1,
+    done: (stage: number) => stage > 1,
+  },
+  {
+    key: "profile",
+    name: "Profile",
+    line: "Map the company",
+    active: (stage: number) => stage === 2,
+    done: (stage: number) => stage > 2,
+  },
+  {
+    key: "dma",
+    name: "DMA Draft",
+    line: "Score the issues",
+    active: (stage: number) => stage === 3,
+    done: (stage: number) => stage > 3,
+  },
+  {
+    key: "signoff",
+    name: "Sign-Off",
+    line: "Lock your assessment",
+    active: (stage: number) => stage === 4,
+    done: (stage: number) => stage > 4,
+  },
+  {
+    key: "pricing",
+    name: "Pricing Model",
+    line: "Model the impact",
+    active: (stage: number) => stage >= 5,
+    done: (stage: number) => false,
+  },
+] as const;
 
 export function emptySignOff(): SignOffState {
   return Object.fromEntries(

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { deleteEngagement, getEngagement, updateEngagement } from "@/lib/storage";
-import type { MethodologyProgress, SignOffState } from "@/lib/types";
+import type { IssueScore, MethodologyProgress, SignOffState } from "@/lib/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -28,6 +28,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     title?: string;
     signOff?: SignOffState;
     methodology?: MethodologyProgress;
+    issueScores?: IssueScore[];
   };
   try {
     const engagement = await updateEngagement(id, (current) => ({
@@ -35,6 +36,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       title: body.title ?? current.title,
       signOff: body.signOff ?? current.signOff,
       methodology: body.methodology ?? current.methodology,
+      artifacts: {
+        ...current.artifacts,
+        issueScores: body.issueScores ?? current.artifacts.issueScores,
+      },
     }));
     return NextResponse.json({ engagement });
   } catch {
