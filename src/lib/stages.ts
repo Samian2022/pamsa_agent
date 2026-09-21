@@ -209,6 +209,9 @@ export function buildContextSummary(engagement: Engagement): string {
     engagement.methodology.buildMode !== "unset"
       ? `Pricing build mode: ${engagement.methodology.buildMode}`
       : null,
+    engagement.documents?.length
+      ? `Source documents uploaded: ${engagement.documents.length}`
+      : null,
   ].filter(Boolean);
 
   const confidenceBits = accepted
@@ -241,4 +244,4 @@ Before we start, I have seven quick questions so I can research the right candid
 6) Prior DMA work? (Have you or your team done a materiality assessment on any company already?)
 7) Pricing model preference? (Cost, revenue, WACC, capital intensity, any preference, or let's see what the issues suggest? I can build, you can build with coaching, or we can hybrid.)
 
-Once you answer, I will research five to seven candidates and present a ranked table with data availability, disclosure clarity, and blind-spot estimates. You pick one, and we dig in.`;
+Once you answer, I will research five to seven candidates and present a ranked table with data availability, disclosure clarity, and blind-spot estimates. You pick one, and we dig in. You can also upload filings, ESG reports, or spreadsheets from Documents (or Attach in the composer). I will treat those as primary sources.`;

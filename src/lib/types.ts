@@ -252,6 +252,22 @@ export type Artifacts = {
   financialModels?: FinancialModel[];
 };
 
+export type DocumentExtractStatus = "ok" | "empty" | "unsupported" | "failed";
+
+export type UploadedDocument = {
+  id: string;
+  name: string;
+  storageName: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+  uploadedBy: SessionUser;
+  charCount: number;
+  extractStatus: DocumentExtractStatus;
+  excerpt: string;
+  notes?: string;
+};
+
 export type Engagement = {
   id: string;
   title: string;
@@ -268,5 +284,6 @@ export type Engagement = {
   dataGapLog: DataGapEntry[];
   assumptionCheckpoints: AssumptionCheckpoint[];
   methodology: MethodologyProgress;
+  documents: UploadedDocument[];
   messages: UIMessage[];
 };

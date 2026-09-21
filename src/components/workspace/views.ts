@@ -5,4 +5,5 @@ export type WorkspaceView =
   | "probing"
   | "assumptions"
   | "signoff"
+  | "documents"
   | "chat";

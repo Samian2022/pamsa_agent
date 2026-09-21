@@ -3,6 +3,7 @@ import { z } from "zod";
 import { fetchUrl, webSearch } from "../search";
 import { canEnterStage, methodologyReady, signOffComplete } from "../stages";
 import { getEngagement, updateEngagement } from "../storage";
+import { readExtractedText } from "../documents";
 import type {
   Assumption,
   AssumptionCheckpoint,
@@ -50,6 +51,42 @@ export function createAgentTools(engagementId: string) {
         url: z.string().url(),
       }),
       execute: async ({ url }) => fetchUrl(url),
+    }),
+
+    read_uploaded_document: tool({
+      description:
+        "Read more of a user-uploaded filing or report. Use the document id from the Uploaded source documents list.",
+      inputSchema: z.object({
+        documentId: z.string(),
+        offset: z.number().int().min(0).optional(),
+        limit: z.number().int().min(200).max(12000).optional(),
+      }),
+      execute: async ({ documentId, offset = 0, limit = 8000 }) => {
+        const current = await getEngagement(engagementId);
+        const doc = current?.documents.find((item) => item.id === documentId);
+        if (!doc) {
+          return { ok: false, error: "Document not found." };
+        }
+        const text = await readExtractedText(engagementId, documentId);
+        if (!text) {
+          return {
+            ok: false,
+            name: doc.name,
+            status: doc.extractStatus,
+            error: doc.notes || "No extracted text is available for this file.",
+          };
+        }
+        const slice = text.slice(offset, offset + limit);
+        return {
+          ok: true,
+          name: doc.name,
+          offset,
+          length: slice.length,
+          total: text.length,
+          hasMore: offset + slice.length < text.length,
+          text: slice,
+        };
+      },
     }),
 
     save_research_candidates: tool({

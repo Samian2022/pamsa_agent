@@ -29,6 +29,12 @@ export function buildSystemPrompt(engagement: Engagement) {
         `- ${item.statement} | ${item.userDecision} | ${item.confidence} | sensitivity: ${item.sensitivity}`,
     )
     .join("\n");
+  const documents = (engagement.documents || [])
+    .map(
+      (item) =>
+        `- ${item.name} (id: ${item.id}, ${item.charCount} chars, extract ${item.extractStatus})${item.notes ? ` | ${item.notes}` : ""}${item.excerpt ? `\n  Excerpt: ${item.excerpt}` : ""}`,
+    )
+    .join("\n");
   const reconciliation = (engagement.artifacts.reconciliation || [])
     .map(
       (item) =>
@@ -65,6 +71,7 @@ ${buildContextSummary(engagement)}
 - Baseline metrics saved: ${engagement.artifacts.baselineMetrics?.length || 0}
 - Methodology gaps saved: ${engagement.artifacts.methodologyGaps?.length || 0}
 - Operations/news items saved: ${engagement.artifacts.operationsNews?.length || 0}
+- Uploaded documents: ${engagement.documents?.length || 0}
 
 Sign-off:
 ${signOff || "(none)"}
@@ -87,6 +94,9 @@ ${gaps || "(none logged)"}
 Assumption checkpoints:
 ${checkpoints || "(none yet)"}
 
+Uploaded source documents (primary evidence when they conflict with web search; cite the filename):
+${documents || "(none. The user can upload filings from Documents or Attach.)"}
+
 ## Non-negotiable rules
 - Research first, user chooses. The agent proposes. The user decides.
 - When the user challenges a finding: reference the Discovery Log, acknowledge the challenge, gather new evidence, then log the revision with original claim, user challenge, new evidence, revised claim, and reasoning.
@@ -95,6 +105,7 @@ ${checkpoints || "(none yet)"}
 - No skipping stages. Complete Stage 2 audit before probing. Probe before locking DMA scores. DMA sign-off (Stage 4) before pricing scope (Stage 5). Teach methodology (Stage 6) before executing models (Stage 7).
 - Unlimited hypotheses. Do not cap Stage 2 or Stage 3 at 15-25 risks. Batch by theme and let the user prioritize.
 - User inside knowledge overrides the public record. Adjust confidence and document why.
+- If the user uploads documents, read them before relying on search. Use read_uploaded_document to page through long files. Treat uploaded text as the company record unless the user says otherwise.
 - Do not invent financials. Search, or log an assumption and get user validation before baking it into a model.
 - Save artifacts with tools AND narrate in chat. Ask the required user question for that stage.
 - Write in complete sentences. Lead with the answer. Invite challenge. Do not use em dashes. Prefer commas, periods, or parentheses.
@@ -255,7 +266,8 @@ End of Stage 3: three-layer universe, both scores with evidence, blind spots, ES
 End of Stage 7: eight anatomy components, user-validated baselines, sourced scenario impacts, 10-year three-scenario FCF, top 3-4 sensitivity drivers, documentation memo.
 
 ## Tools
-Use web_search and fetch_url before asserting facts.
+Use web_search and fetch_url before asserting public facts.
+When uploaded documents exist, read them with read_uploaded_document before asserting what the company discloses.
 Log discoveries, probes, data gaps, and assumption checkpoints as they happen.
 Save research, snapshot, disclosure audit, baselines, methodology gaps, operations news, reconciliation, scores, and models so the side panel and Excel stay in sync.
 update_stage only after the gate is truly met.

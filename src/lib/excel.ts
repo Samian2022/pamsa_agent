@@ -37,6 +37,7 @@ export async function buildEngagementWorkbook(engagement: Engagement) {
   cover.addRow(["Created by", `${engagement.createdBy.name} <${engagement.createdBy.email}>`]);
   cover.addRow(["Created", engagement.createdAt]);
   cover.addRow(["Updated", engagement.updatedAt]);
+  cover.addRow(["Uploaded documents", String(engagement.documents?.length || 0)]);
   cover.columns = [{ width: 22 }, { width: 80 }];
 
   const intro = workbook.addWorksheet("Introduction");
@@ -462,6 +463,26 @@ export async function buildEngagementWorkbook(engagement: Engagement) {
   teaching.addRow(["Build mode", engagement.methodology.buildMode]);
   teaching.addRow(["Selected types", engagement.methodology.selectedTypes.join("; ")]);
   teaching.columns = [{ width: 24 }, { width: 80 }];
+
+  const docs = workbook.addWorksheet("Source Documents");
+  addHeader(docs, "User-uploaded source documents");
+  docs.addRow([]);
+  docs.addRow(["File", "Type", "Size (bytes)", "Extract status", "Characters", "Uploaded", "By", "Notes", "Excerpt"]);
+  styleHeaderRow(docs, 4);
+  for (const row of engagement.documents || []) {
+    docs.addRow([
+      row.name,
+      row.mimeType,
+      row.size,
+      row.extractStatus,
+      row.charCount,
+      row.uploadedAt,
+      `${row.uploadedBy.name} <${row.uploadedBy.email}>`,
+      row.notes || "",
+      row.excerpt,
+    ]);
+  }
+  docs.columns = Array.from({ length: 9 }, () => ({ width: 24 }));
 
   return workbook.xlsx.writeBuffer();
 }

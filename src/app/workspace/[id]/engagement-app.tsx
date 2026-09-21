@@ -10,6 +10,7 @@ import { LeftSidebar } from "@/components/workspace/left-sidebar";
 import type { WorkspaceView } from "@/components/workspace/views";
 import { RightSidebar } from "@/components/workspace/right-sidebar";
 import { SignOffGate } from "@/components/workspace/sign-off-gate";
+import { ComposerAttach, DocumentLibrary } from "@/components/workspace/document-library";
 import {
   HypothesisCards,
   MetricsGrid,
@@ -226,6 +227,17 @@ export function EngagementApp({
                   </>
                 ) : null}
 
+                {view === "documents" ? (
+                  <DocumentLibrary
+                    engagement={engagement}
+                    onChange={setEngagement}
+                    onAskAgent={(text) => {
+                      setView("chat");
+                      void sendText(text);
+                    }}
+                  />
+                ) : null}
+
                 {view === "discovery" ? <TimelineLog engagement={engagement} mode="discovery" /> : null}
                 {view === "probing" ? <TimelineLog engagement={engagement} mode="probing" /> : null}
                 {view === "assumptions" ? <TimelineLog engagement={engagement} mode="assumptions" /> : null}
@@ -283,11 +295,21 @@ export function EngagementApp({
             </div>
 
             <form onSubmit={onSubmit} className="border-t border-[var(--line)] bg-white/90 p-4">
-              <div className="mx-auto flex max-w-[1200px] gap-2">
+              <div className="mx-auto max-w-[1200px]">
+                {(engagement.documents || []).length > 0 ? (
+                  <button
+                    type="button"
+                    className="mb-2 text-left text-[11px] text-ink-soft hover:text-sage"
+                    onClick={() => setView("documents")}
+                  >
+                    {engagement.documents.length} source document{engagement.documents.length === 1 ? "" : "s"} attached
+                  </button>
+                ) : null}
+                <div className="flex gap-2">
                 <textarea
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
-                  placeholder="What's your assessment? Reply with criteria, challenge a finding, pick a company, or paste a filing URL."
+                  placeholder="What's your assessment? Reply with criteria, challenge a finding, pick a company, paste a filing URL, or attach a document."
                   className="field-input h-24 flex-1 resize-none rounded-2xl px-3 py-2 text-[14px]"
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
@@ -310,6 +332,18 @@ export function EngagementApp({
                       Send
                     </button>
                   )}
+                  <ComposerAttach
+                    engagementId={initial.id}
+                    disabled={busy}
+                    onUploaded={(next, names) => {
+                      setEngagement(next);
+                      void sendText(
+                        names.length === 1
+                          ? `I uploaded ${names[0]}. Treat it as a primary source. Use read_uploaded_document if you need more than the excerpt.`
+                          : `I uploaded ${names.length} documents: ${names.join(", ")}. Treat them as primary sources.`,
+                      );
+                    }}
+                  />
                   <button
                     type="button"
                     className="rounded-full border border-sage/40 px-4 py-2 text-[12px] text-sage xl:hidden"
@@ -317,6 +351,7 @@ export function EngagementApp({
                   >
                     Probe
                   </button>
+                </div>
                 </div>
               </div>
             </form>

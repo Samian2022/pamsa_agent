@@ -80,6 +80,7 @@ export function LeftSidebar({
     { id: "probing", label: `Probing Log (${engagement.probeLog.length} challenges raised)` },
     { id: "assumptions", label: `Assumptions (${pendingAssumptions} to validate)` },
     { id: "signoff", label: `Sign-Off Checklist (${signed}/${SIGN_OFF_ITEMS.length} confirmed)` },
+    { id: "documents", label: `Documents (${engagement.documents?.length || 0} uploaded)` },
     { id: "chat", label: "Research chat" },
   ];
 

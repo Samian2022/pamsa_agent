@@ -3,6 +3,7 @@ import { mkdir, readdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { del, get, list, put } from "@vercel/blob";
 import { emptyMethodology, emptySignOff, OPENING_MESSAGE } from "./stages";
+import { deleteAllUploadedDocuments } from "./documents";
 import type { Engagement, SessionUser } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), ".data", "engagements");
@@ -53,6 +54,7 @@ export function createEngagement(user: SessionUser, title = "New engagement"): E
     dataGapLog: [],
     assumptionCheckpoints: [],
     methodology: emptyMethodology(),
+    documents: [],
     messages: [
       {
         id: randomUUID(),
@@ -71,6 +73,7 @@ function normalizeEngagement(engagement: Engagement): Engagement {
     dataGapLog: engagement.dataGapLog || [],
     assumptionCheckpoints: engagement.assumptionCheckpoints || [],
     methodology: engagement.methodology || emptyMethodology(),
+    documents: engagement.documents || [],
     artifacts: {
       ...engagement.artifacts,
       pricingScope: engagement.artifacts.pricingScope
@@ -193,6 +196,7 @@ export async function listEngagements(): Promise<Engagement[]> {
 }
 
 export async function deleteEngagement(id: string) {
+  await deleteAllUploadedDocuments(id);
   if (usesBlob()) {
     const listed = await list({ prefix: blobPath(id) });
     const urls = listed.blobs
