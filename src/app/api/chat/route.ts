@@ -1,4 +1,5 @@
 import { convertToModelMessages, pruneMessages, stepCountIs, streamText, type UIMessage } from "ai";
+import { extractFindingsResponse } from "@/lib/agent/discovery";
 import { createAgentTools } from "@/lib/agent/tools";
 import { buildSystemPrompt } from "@/lib/agent/prompt";
 import { getCurrentUser } from "@/lib/auth";
@@ -50,12 +51,18 @@ export async function POST(request: Request) {
       (engagement.stage >= 2 && cardCount < 6));
   const tools = createAgentTools(engagementId);
   const documentBodies = await loadDocumentTextForPrompt(engagementId, engagement.documents || []);
-  const history = findingExtract
-    ? messages.filter((message) => message.role === "user").slice(-1)
-    : messages;
+  if (findingExtract) {
+    return extractFindingsResponse({
+      engagement,
+      engagementId,
+      messages,
+      documentBodies,
+      userText,
+    });
+  }
   const modelMessages = pruneMessages({
-    messages: await convertToModelMessages(history, { tools }),
-    toolCalls: findingExtract ? "all" : "before-last-message",
+    messages: await convertToModelMessages(messages, { tools }),
+    toolCalls: "before-last-message",
     reasoning: "before-last-message",
     emptyMessages: "remove",
   });
@@ -66,24 +73,8 @@ export async function POST(request: Request) {
     messages: modelMessages,
     tools,
     timeout: { totalMs: 50_000, toolMs: 12_000 },
-    stopWhen: stepCountIs(findingExtract ? 2 : decisionTurn ? 3 : 5),
-    activeTools: findingExtract
-      ? ["save_discovery_cards"]
-      : decisionTurn
-        ? ["log_discovery", "log_probe", "save_discovery_cards"]
-        : undefined,
-    prepareStep: ({ stepNumber }) => {
-      if (findingExtract) {
-        if (stepNumber === 0) {
-          return {
-            toolChoice: { type: "tool" as const, toolName: "save_discovery_cards" as const },
-            activeTools: ["save_discovery_cards"] as const,
-          };
-        }
-        return { toolChoice: "none" as const };
-      }
-      return {};
-    },
+    stopWhen: stepCountIs(decisionTurn ? 3 : 5),
+    activeTools: decisionTurn ? ["log_discovery", "log_probe", "save_discovery_cards"] : undefined,
   });
 
   return result.toUIMessageStreamResponse({

@@ -4,6 +4,7 @@ import { fetchUrl, webSearch } from "../search";
 import { canEnterStage, methodologyReady, signOffComplete } from "../stages";
 import { getEngagement, updateEngagement } from "../storage";
 import { readExtractedText } from "../documents";
+import { discoveryCardsSchema, persistDiscoveryCards } from "./discovery";
 import type {
   Assumption,
   AssumptionCheckpoint,
@@ -11,7 +12,6 @@ import type {
   Citation,
   DataGapEntry,
   DisclosureChannel,
-  DiscoveryCard,
   DiscoveryLogEntry,
   FinancialModel,
   IssueScore,
@@ -325,66 +325,10 @@ export function createAgentTools(engagementId: string) {
 
     save_discovery_cards: tool({
       description:
-        "Save 6 to 8 discovery cards and add each new issue to the discovery log as pending. Always send at least 6 distinct issues. Call this FIRST after a filing or company lock. Do not call log_discovery separately for this batch.",
-      inputSchema: z.object({
-        cards: z.array(
-          z.object({
-            issue: z.string(),
-            definition: z.string(),
-            evidence: z.string(),
-            confidence,
-            whyExposure: z.string().optional(),
-            whyNotDisclosed: z.string().optional(),
-            financialMateriality: z.string().optional(),
-            impactMateriality: z.string().optional(),
-            companyDisclosure: z.string().optional(),
-            esrsExpectation: z.string().optional(),
-            operationsSignal: z.string().optional(),
-            nextInvestigation: z.string().optional(),
-          }),
-        ).min(6).max(8),
-      }),
+        "Save 6 to 8 short discovery cards and add each new issue to the discovery log as pending. Always send at least 6 distinct issues. Keep every field to one sentence.",
+      inputSchema: discoveryCardsSchema,
       execute: async ({ cards }) => {
-        const normalized = cards.map((card) => ({
-          ...card,
-          whyExposure: card.whyExposure || "",
-          whyNotDisclosed: card.whyNotDisclosed || "",
-          financialMateriality: card.financialMateriality || "",
-          impactMateriality: card.impactMateriality || "",
-        })) as DiscoveryCard[];
-        await updateEngagement(engagementId, (current) => {
-          const previous = current.artifacts.discoveryCards || [];
-          const byIssue = new Map(previous.map((card) => [card.issue.toLowerCase(), card]));
-          for (const card of normalized) {
-            byIssue.set(card.issue.toLowerCase(), card);
-          }
-          const log = [...current.discoveryLog];
-          for (const card of normalized) {
-            const key = card.issue.toLowerCase();
-            const idx = log.findIndex((item) => item.issue.toLowerCase() === key);
-            if (idx === -1) {
-              log.push({
-                id: nowId("d"),
-                issue: card.issue,
-                raisedAt: new Date().toISOString(),
-                source: card.evidence || "Uploaded filing",
-                confidence: card.confidence,
-                reaction: "pending",
-              });
-            } else if (log[idx].reaction === "pending") {
-              log[idx] = {
-                ...log[idx],
-                source: card.evidence || log[idx].source,
-                confidence: card.confidence,
-              };
-            }
-          }
-          return {
-            ...current,
-            artifacts: { ...current.artifacts, discoveryCards: Array.from(byIssue.values()) },
-            discoveryLog: log,
-          };
-        });
+        const normalized = await persistDiscoveryCards(engagementId, cards);
         return { saved: normalized.length, mode: "merged", alsoLogged: true, issues: normalized.map((card) => card.issue) };
       },
     }),
