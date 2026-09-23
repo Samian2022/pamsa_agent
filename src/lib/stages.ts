@@ -18,7 +18,7 @@ export const STAGES: { id: StageId; name: string; short: string; gate: string }[
       id: 3,
       name: "Probing and DMA",
       short: "Probe",
-      gate: "User probes risk hypotheses, then validates three-layer scores and the matrix.",
+      gate: "User probes hypotheses, locks a scoring key, then validates IRO scores against that key.",
     },
     {
       id: 4,
@@ -55,7 +55,7 @@ export const SIGN_OFF_ITEMS: { id: string; label: string; description: string }[
   {
     id: "disclosed-issues",
     label: "Issue selection locked",
-    description: "A final set of 3 to 6 material issues is locked, mixing disclosed issues and undisclosed risks.",
+    description: "Three environmental topics including climate (E1), three social topics, and the IROs under them are locked, mixing disclosed issues and undisclosed risks.",
   },
   {
     id: "undisclosed-issues",
@@ -65,7 +65,7 @@ export const SIGN_OFF_ITEMS: { id: string; label: string; description: string }[
   {
     id: "methodology",
     label: "Scoring methodology agreed",
-    description: "You accept the 1 to 5 financial and impact scales, including dollar and EBITDA bands, and they were applied consistently.",
+    description: "You accept the scoring key: why 1 to 5, impact tests that cover operations and the value chain, financial tests on cash flow, costs, revenue, and assets, time horizons, and the materiality threshold. Scores must match those band definitions.",
   },
   {
     id: "top-issues",
@@ -85,7 +85,7 @@ export const SIGN_OFF_ITEMS: { id: string; label: string; description: string }[
   {
     id: "metrics",
     label: "Metrics selected and mapped",
-    description: "Each material issue has an ESRS-aligned metric (or a justified custom metric) plus a data source: company report, filing, or external estimate.",
+    description: "Each material IRO has metrics that measure why it scored high on impact and on financial axes, not only the metrics the company already reports.",
   },
   {
     id: "pnl-pathways",
@@ -221,7 +221,10 @@ export function nextAction(engagement: Engagement): string {
       : "A company should be locked before the audit. Select one from Candidates or name it in chat.";
   }
   if (engagement.stage === 3) {
-    return "Review findings on the cards, then score issues on the matrix.";
+    if (!engagement.artifacts.scoringFramework) {
+      return "Ask the agent to lock the scoring key first: climate (E1) plus two more environmental topics and three social, with rationale. Then score IROs, not topic labels.";
+    }
+    return "Score each IRO against the scoring key. The rationale must use the band language. Metrics must measure why it scored high.";
   }
   if (engagement.stage === 4) {
     return signOffComplete(engagement.signOff)

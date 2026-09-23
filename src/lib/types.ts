@@ -116,6 +116,53 @@ export type DiscoveryCard = {
   nextInvestigation?: string;
 };
 
+export type IroKind = "impact" | "risk" | "opportunity";
+export type ImpactActuality = "actual" | "potential";
+export type AxisPolarity = "positive" | "negative";
+
+export type ScoredDimension = {
+  score: number;
+  rationale: string;
+  citation?: string;
+  citationLocator?: string;
+};
+
+export type RecommendedMetric = {
+  metric: string;
+  axis: "impact" | "financial";
+  whyLinkedToCriteria: string;
+  alreadyReported?: boolean;
+};
+
+export type ScoringTopic = {
+  esrs: string;
+  name: string;
+  pillar: "environmental" | "social";
+  rationale: string;
+  evidence: string;
+};
+
+export type ScoringFramework = {
+  scaleChoiceRationale: string;
+  topicSelectionRationale: string;
+  topics: ScoringTopic[];
+  impactDimensions: string;
+  impactIncludesValueChain: boolean;
+  socialNormsUsed: string;
+  impactTimeHorizons: string;
+  impactTimeHorizonRationale: string;
+  impactBands: string;
+  financialDimensions: string;
+  financialMagnitudeOn: string;
+  financialTimeHorizons: string;
+  financialTimeHorizonRationale: string;
+  timeHorizonVsImpact: string;
+  financialBands: string;
+  thresholdRule: string;
+  thresholdRationale: string;
+  alignedToCompanyFinancials: string;
+};
+
 export type IssueScore = {
   issue: string;
   definition: string;
@@ -133,6 +180,24 @@ export type IssueScore = {
   methodologyGapScore?: number;
   companyJudgment?: string;
   layer?: "disclosed" | "peer-gap" | "probed";
+  topicArea?: string;
+  esrsTopic?: string;
+  iroKind?: IroKind;
+  iroDescription?: string;
+  actualVsPotential?: ImpactActuality;
+  polarity?: AxisPolarity;
+  valueChainLocation?: string;
+  impactScale?: ScoredDimension;
+  impactScope?: ScoredDimension;
+  impactRemediability?: ScoredDimension;
+  impactLikelihood?: ScoredDimension;
+  impactTimeHorizon?: string;
+  financialMagnitude?: ScoredDimension;
+  financialProbability?: ScoredDimension;
+  financialTimeHorizon?: string;
+  material?: boolean;
+  materialRationale?: string;
+  recommendedMetrics?: RecommendedMetric[];
 };
 
 export type Assumption = {
@@ -245,6 +310,7 @@ export type Artifacts = {
   stakeholders?: Stakeholder[];
   discoveryCards?: DiscoveryCard[];
   issueScores?: IssueScore[];
+  scoringFramework?: ScoringFramework;
   scoringFrameworkNotes?: string;
   blindSpotSummary?: string;
   esrsMapping?: { issue: string; metric: string; rationale: string }[];

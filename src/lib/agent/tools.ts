@@ -5,6 +5,7 @@ import { canEnterStage, methodologyReady, signOffComplete } from "../stages";
 import { getEngagement, updateEngagement } from "../storage";
 import { readExtractedText } from "../documents";
 import { discoveryCardsSchema, persistDiscoveryCards } from "./discovery";
+import { issueScoreSchema, persistIssueScores, persistScoringFramework, scoringFrameworkSchema } from "./scoring";
 import type {
   Assumption,
   AssumptionCheckpoint,
@@ -333,36 +334,29 @@ export function createAgentTools(engagementId: string) {
       },
     }),
 
+    save_scoring_framework: tool({
+      description:
+        "Save the scoring key before scoring IROs. Lock topic selection (climate E1 plus two more environmental and three social), why you use a 1 to 5 scale, impact and financial criteria, time horizons, and the materiality threshold.",
+      inputSchema: scoringFrameworkSchema,
+      execute: async (framework) => {
+        await persistScoringFramework(engagementId, framework);
+        return {
+          saved: true,
+          topics: framework.topics.map((topic) => `${topic.esrs} ${topic.name}`),
+          threshold: framework.thresholdRule,
+        };
+      },
+    }),
+
     save_issue_scores: tool({
-      description: "Save scored DMA issues (disclosed and undisclosed) for the matrix.",
+      description:
+        "Save 1 to 3 scored IROs (not topic labels). Merge into the matrix. Every score needs a rationale that uses the scoring-key language for that band, plus a citation with page or section for long filings. Recommended metrics must measure why the IRO scored high.",
       inputSchema: z.object({
-        issues: z.array(
-          z.object({
-            issue: z.string(),
-            definition: z.string(),
-            disclosed: z.boolean(),
-            emerging: z.boolean(),
-            financialScore: score,
-            impactScore: score,
-            financialEvidence: z.string(),
-            impactEvidence: z.string(),
-            disclosureStatus: z.string(),
-            confidence,
-            recommendedMetric: z.string(),
-            dataQuality: z.enum(["certain", "assumption", "gap"]),
-            esrs: z.string().optional(),
-            methodologyGapScore: score.optional(),
-            companyJudgment: z.string().optional(),
-            layer: z.enum(["disclosed", "peer-gap", "probed"]).optional(),
-          }),
-        ),
+        issues: z.array(issueScoreSchema).min(1).max(3),
       }),
       execute: async ({ issues }) => {
-        await updateEngagement(engagementId, (current) => ({
-          ...current,
-          artifacts: { ...current.artifacts, issueScores: issues as IssueScore[] },
-        }));
-        return { saved: issues.length };
+        const saved = await persistIssueScores(engagementId, issues as IssueScore[]);
+        return { saved: saved.length, issues: saved.map((item) => item.issue) };
       },
     }),
 

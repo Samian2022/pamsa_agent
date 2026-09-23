@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FINANCIAL_BANDS, IMPACT_BANDS, SCORE_LABELS, confidencePercent } from "@/lib/format";
+import { FINANCIAL_BANDS, IMPACT_BANDS, SCORE_LABELS, confidencePercent, rationaleMatchesBand } from "@/lib/format";
 import { methodologyReady } from "@/lib/stages";
 import type {
   Engagement,
@@ -9,6 +9,8 @@ import type {
   MethodologyProgress,
   PricingBuildMode,
   PricingModelType,
+  ScoredDimension,
+  ScoringFramework,
   UserReaction,
 } from "@/lib/types";
 import { MaterialityMatrix } from "./materiality-matrix";
@@ -325,6 +327,90 @@ export function ProfileView({ engagement }: { engagement: Engagement }) {
   );
 }
 
+function DimensionNote({
+  label,
+  dimension,
+  bandHint,
+}: {
+  label: string;
+  dimension?: ScoredDimension;
+  bandHint: string;
+}) {
+  if (!dimension) return null;
+  const aligned = rationaleMatchesBand(dimension.rationale, bandHint);
+  return (
+    <div className="rounded-lg bg-cloud px-3 py-2">
+      <p className="flex justify-between text-[11px] uppercase tracking-[0.12em] text-taupe">
+        <span>{label}</span>
+        <span className="font-mono text-forest">
+          {dimension.score} · {SCORE_LABELS[dimension.score]}
+        </span>
+      </p>
+      <p className="mt-1 text-[12px] leading-5 text-ink-soft">{dimension.rationale}</p>
+      {dimension.citation ? (
+        <p className="mt-1 text-[11px] text-ink-soft">
+          {dimension.citation}
+          {dimension.citationLocator ? ` · ${dimension.citationLocator}` : ""}
+        </p>
+      ) : null}
+      {aligned ? null : (
+        <p className="mt-1 text-[12px] text-rust">
+          This rationale does not use the scoring-key language for that band.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ScoringKey({ framework }: { framework: ScoringFramework }) {
+  const environmental = framework.topics.filter((item) => item.pillar === "environmental");
+  const social = framework.topics.filter((item) => item.pillar === "social");
+  return (
+    <div className="space-y-3 rounded-xl border border-[var(--line)] bg-white p-4">
+      <PanelHeader
+        title="Scoring key"
+        subtitle="Every IRO is scored against this key. The executive team will ask why each choice."
+      />
+      <p className="text-[13px] leading-6 text-ink">{framework.topicSelectionRationale}</p>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.12em] text-taupe">Environmental</p>
+          <ul className="mt-1 space-y-1 text-[13px] text-ink">
+            {environmental.map((topic) => (
+              <li key={topic.esrs}>
+                {topic.esrs} {topic.name}. {topic.rationale}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.12em] text-taupe">Social</p>
+          <ul className="mt-1 space-y-1 text-[13px] text-ink">
+            {social.map((topic) => (
+              <li key={topic.esrs}>
+                {topic.esrs} {topic.name}. {topic.rationale}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <p className="text-[12px] leading-5 text-ink-soft">
+        Scale: {framework.scaleChoiceRationale} Threshold: {framework.thresholdRule}.{" "}
+        {framework.thresholdRationale} Impact tests: {framework.impactDimensions}
+        {framework.impactIncludesValueChain ? ", covering operations and the value chain" : ", value chain is not yet in the criteria language"}.
+        Financial tests: {framework.financialDimensions} on {framework.financialMagnitudeOn}. Time horizons:
+        impact {framework.impactTimeHorizons}; financial {framework.financialTimeHorizons}.{" "}
+        {framework.timeHorizonVsImpact}
+      </p>
+      {framework.impactIncludesValueChain ? null : (
+        <p className="text-[12px] text-rust">
+          Add operations and value chain to the impact criteria so supply-chain IROs get scored.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function ScoringPanel({
   engagement,
   selected,
@@ -337,6 +423,7 @@ export function ScoringPanel({
   onScores: (issues: IssueScore[]) => void;
 }) {
   const issues = engagement.artifacts.issueScores;
+  const framework = engagement.artifacts.scoringFramework;
   const originals = useRef(
     new Map((issues || []).map((item) => [item.issue, { f: item.financialScore, i: item.impactScore }])),
   );
@@ -346,15 +433,17 @@ export function ScoringPanel({
     setDraft(issues || []);
   }, [issues]);
 
-  if (!issues?.length) {
+  if (!framework && !issues?.length) {
     return (
       <div>
         <PanelHeader
-          title="Score each material issue"
-          subtitle="Move the sliders. Read the implications. Challenge the agent. Lock your assessment."
+          title="Score each IRO"
+          subtitle="Lock the scoring key first. Then score impacts, risks, and opportunities against that key, not topic labels."
         />
         <p className="text-sm text-ink-soft">
-          Ask the agent to save issue scores after probing. They will appear on this matrix so you can move the sliders.
+          Ask the agent to save the scoring key: climate change (E1) plus two more environmental topics and
+          three social, with rationale and evidence. Then score 1 to 3 IROs at a time. Climate is presumed
+          material unless you prove otherwise.
         </p>
       </div>
     );
@@ -368,93 +457,188 @@ export function ScoringPanel({
   return (
     <div className="space-y-6">
       <PanelHeader
-        title="Score each material issue"
-        subtitle="Move the sliders. Read the implications. Challenge the agent. Lock your assessment."
+        title="Score each IRO"
+        subtitle="Move the sliders. The rationale must match the scoring-key band. Metrics must measure why it scored high."
       />
-      <MaterialityMatrix
-        issues={draft}
-        discoveryLog={engagement.discoveryLog}
-        selected={selected}
-        onSelect={onSelect}
-      />
-      <p className="text-[12px] text-ink-soft">
-        Solid sage: disclosed by the company. Rust: the company is silent on this. Amber: you are
-        investigating this. Teal: upside opportunity. Your data overrides ours.
-      </p>
+      {framework ? <ScoringKey framework={framework} /> : null}
+      {draft.length ? (
+        <MaterialityMatrix
+          issues={draft}
+          discoveryLog={engagement.discoveryLog}
+          selected={selected}
+          onSelect={onSelect}
+        />
+      ) : (
+        <p className="text-sm text-ink-soft">
+          The key is saved. Ask the agent to score the first IRO under E1 climate change.
+        </p>
+      )}
+      {draft.length ? (
+        <p className="text-[12px] text-ink-soft">
+          Solid sage: disclosed by the company. Rust: the company is silent on this. Amber: you are
+          investigating this. Teal: upside opportunity. Your data overrides ours. The matrix is only part of
+          the threshold if the scoring key says clusters define material.
+        </p>
+      ) : null}
       <div className="space-y-4">
         {draft.map((issue) => {
           const original = originals.current.get(issue.issue);
           const jumped =
             original &&
             (Math.abs(original.f - issue.financialScore) >= 2 || Math.abs(original.i - issue.impactScore) >= 2);
+          const impactAligned = rationaleMatchesBand(
+            issue.impactEvidence,
+            framework?.impactBands || IMPACT_BANDS[issue.impactScore],
+          );
+          const financialAligned = rationaleMatchesBand(
+            issue.financialEvidence,
+            framework?.financialBands || FINANCIAL_BANDS[issue.financialScore],
+          );
           return (
             <div
               key={issue.issue}
-              className={`grid gap-4 rounded-xl border border-[var(--line)] bg-white p-4 md:grid-cols-[2fr_1.5fr_1.5fr] ${
+              className={`space-y-3 rounded-xl border border-[var(--line)] bg-white p-4 ${
                 selected === issue.issue ? "ring-1 ring-sage" : ""
               }`}
             >
-              <div>
-                <button type="button" onClick={() => onSelect(issue.issue)} className="text-left">
-                  <h3 className="serif text-[16px] text-forest">{issue.issue}</h3>
-                </button>
-                <p className="mt-1 text-[12px] text-ink-soft">{issue.definition}</p>
-                <div className="mt-2">
-                  <ConfidenceBadge value={issue.confidence} />
+              <div className="grid gap-4 md:grid-cols-[2fr_1.5fr_1.5fr]">
+                <div>
+                  <button type="button" onClick={() => onSelect(issue.issue)} className="text-left">
+                    <p className="text-[11px] uppercase tracking-[0.12em] text-taupe">
+                      {[issue.esrsTopic || issue.esrs, issue.iroKind, issue.actualVsPotential, issue.polarity]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                    <h3 className="serif text-[16px] text-forest">{issue.issue}</h3>
+                  </button>
+                  <p className="mt-1 text-[12px] text-ink-soft">{issue.iroDescription || issue.definition}</p>
+                  {issue.valueChainLocation ? (
+                    <p className="mt-1 text-[12px] text-ink-soft">Where: {issue.valueChainLocation}</p>
+                  ) : null}
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <ConfidenceBadge value={issue.confidence} />
+                    {typeof issue.material === "boolean" ? (
+                      <span className={`text-[11px] uppercase tracking-wide ${issue.material ? "text-sage" : "text-taupe"}`}>
+                        {issue.material ? "Material under the key" : "Below the threshold"}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {(
+                    [
+                      ["financialScore", "Financial materiality"],
+                      ["impactScore", "Impact materiality"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <label key={key} className="block text-[12px]">
+                      <span className="flex justify-between text-forest">
+                        {label}
+                        <span className="font-mono">
+                          {issue[key]} · {SCORE_LABELS[issue[key]]}
+                        </span>
+                      </span>
+                      <input
+                        type="range"
+                        min={1}
+                        max={5}
+                        value={issue[key]}
+                        onChange={(event) => update(issue.issue, key, Number(event.target.value))}
+                        className="mt-1 w-full accent-sage"
+                      />
+                      {key === "financialScore" ? (
+                        <span className="text-[11px] text-ink-soft">
+                          {framework?.financialBands || FINANCIAL_BANDS[issue.financialScore]}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-ink-soft">
+                          {framework?.impactBands || IMPACT_BANDS[issue.impactScore]}
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-taupe">Why this score</p>
+                  <p className="mt-1 text-[12px] text-ink-soft">{issue.financialEvidence}</p>
+                  <p className="mt-1 text-[12px] text-ink-soft">{issue.impactEvidence}</p>
+                  {financialAligned && impactAligned ? null : (
+                    <p className="mt-2 text-[12px] text-rust">
+                      Link the rationale to the scoring-key definition of this band, not only a raw number.
+                    </p>
+                  )}
+                  {issue.materialRationale ? (
+                    <p className="mt-2 text-[12px] text-ink-soft">{issue.materialRationale}</p>
+                  ) : null}
+                  {jumped ? (
+                    <p className="mt-2 text-[12px] text-rust">
+                      Heads up: you have rescored this significantly from the agent proposal. Clear data?
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => onScores(draft)}
+                    className="btn-primary mt-3 rounded-full px-3 py-1.5 text-[12px]"
+                  >
+                    Save score
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(issue.issue)}
+                    className="ml-2 mt-3 rounded-full border border-rust/40 px-3 py-1.5 text-[12px] text-rust"
+                  >
+                    Challenge agent's proposal
+                  </button>
                 </div>
               </div>
-              <div className="space-y-3">
-                {(
-                  [
-                    ["financialScore", "Financial materiality"],
-                    ["impactScore", "Impact materiality"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <label key={key} className="block text-[12px]">
-                    <span className="flex justify-between text-forest">
-                      {label}
-                      <span className="font-mono">{issue[key]} · {SCORE_LABELS[issue[key]]}</span>
-                    </span>
-                    <input
-                      type="range"
-                      min={1}
-                      max={5}
-                      value={issue[key]}
-                      onChange={(event) => update(issue.issue, key, Number(event.target.value))}
-                      className="mt-1 w-full accent-sage"
-                    />
-                    {key === "financialScore" ? (
-                      <span className="text-[11px] text-ink-soft">{FINANCIAL_BANDS[issue.financialScore]}</span>
-                    ) : (
-                      <span className="text-[11px] text-ink-soft">{IMPACT_BANDS[issue.impactScore]}</span>
-                    )}
-                  </label>
-                ))}
-              </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.12em] text-taupe">Why did you score it here?</p>
-                <p className="mt-1 text-[12px] text-ink-soft">{issue.financialEvidence}</p>
-                <p className="mt-2 font-mono text-[11px] text-forest">{issue.recommendedMetric}</p>
-                {jumped ? (
-                  <p className="mt-2 text-[12px] text-rust">
-                    Heads up: you have rescored this significantly from the agent proposal. Clear data?
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => onScores(draft)}
-                  className="btn-primary mt-3 rounded-full px-3 py-1.5 text-[12px]"
-                >
-                  Save score
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSelect(issue.issue)}
-                  className="ml-2 mt-3 rounded-full border border-rust/40 px-3 py-1.5 text-[12px] text-rust"
-                >
-                  Challenge agent's proposal
-                </button>
-              </div>
+              {issue.impactScale || issue.financialMagnitude ? (
+                <div className="grid gap-2 md:grid-cols-2">
+                  <DimensionNote
+                    label="Impact scale"
+                    dimension={issue.impactScale}
+                    bandHint={framework?.impactBands || IMPACT_BANDS[issue.impactScore]}
+                  />
+                  <DimensionNote
+                    label="Impact scope"
+                    dimension={issue.impactScope}
+                    bandHint={framework?.impactBands || IMPACT_BANDS[issue.impactScore]}
+                  />
+                  <DimensionNote
+                    label="Remediability"
+                    dimension={issue.impactRemediability}
+                    bandHint={framework?.impactBands || IMPACT_BANDS[issue.impactScore]}
+                  />
+                  <DimensionNote
+                    label="Likelihood"
+                    dimension={issue.impactLikelihood}
+                    bandHint={framework?.impactBands || IMPACT_BANDS[issue.impactScore]}
+                  />
+                  <DimensionNote
+                    label="Financial magnitude"
+                    dimension={issue.financialMagnitude}
+                    bandHint={framework?.financialBands || FINANCIAL_BANDS[issue.financialScore]}
+                  />
+                  <DimensionNote
+                    label="Financial probability"
+                    dimension={issue.financialProbability}
+                    bandHint={framework?.financialBands || FINANCIAL_BANDS[issue.financialScore]}
+                  />
+                </div>
+              ) : null}
+              {issue.recommendedMetrics?.length ? (
+                <ul className="space-y-1 text-[12px] text-ink-soft">
+                  {issue.recommendedMetrics.map((metric) => (
+                    <li key={`${metric.axis}-${metric.metric}`}>
+                      <span className="font-mono text-forest">{metric.metric}</span>
+                      {" · "}
+                      {metric.axis} · {metric.whyLinkedToCriteria}
+                      {metric.alreadyReported ? " (already reported)" : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="font-mono text-[11px] text-forest">{issue.recommendedMetric}</p>
+              )}
             </div>
           );
         })}
@@ -466,32 +650,43 @@ export function ScoringPanel({
 export function MetricsGrid({ engagement }: { engagement: Engagement }) {
   const rows = engagement.artifacts.esrsMapping || [];
   const scores = engagement.artifacts.issueScores || [];
-  if (!rows.length && !scores.length) return null;
+  const fromIros = scores.flatMap((item) =>
+    (item.recommendedMetrics || []).map((metric) => ({
+      issue: item.issue,
+      metric: metric.metric,
+      rationale: `${metric.axis}: ${metric.whyLinkedToCriteria}`,
+    })),
+  );
+  const fallback = scores.map((item) => ({
+    issue: item.issue,
+    metric: item.recommendedMetric,
+    rationale: item.esrs || item.materialRationale || "",
+  }));
+  const display = fromIros.length ? fromIros : rows.length ? rows : fallback;
+  if (!display.length) return null;
   return (
     <div>
       <PanelHeader
         title="Measure what matters"
-        subtitle="Each material issue has a metric. Some are ESRS standards. Some are custom to your analysis. All are defensible."
+        subtitle="Metrics must measure why the IRO scored high. Company-reported metrics are fine only when they also speak to that why."
       />
       <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-white">
       <table className="w-full text-left text-[13px]">
         <thead className="text-[10px] uppercase tracking-[0.14em] text-taupe">
           <tr>
-            <th className="px-3 py-2">Material issue</th>
-            <th className="px-3 py-2">ESRS / metric</th>
-            <th className="px-3 py-2">Baseline</th>
+            <th className="px-3 py-2">IRO</th>
+            <th className="px-3 py-2">Metric</th>
+            <th className="px-3 py-2">Why this metric</th>
           </tr>
         </thead>
         <tbody>
-          {(rows.length ? rows : scores.map((item) => ({ issue: item.issue, metric: item.recommendedMetric, rationale: item.esrs || "" }))).map(
-            (row) => (
-              <tr key={row.issue} className="border-t border-[var(--line)] hover:bg-sage/10">
-                <td className="px-3 py-2">{row.issue}</td>
-                <td className="px-3 py-2 font-mono text-[12px]">{row.metric}</td>
-                <td className="px-3 py-2 text-ink-soft">{row.rationale || "Not disclosed"}</td>
-              </tr>
-            ),
-          )}
+          {display.map((row) => (
+            <tr key={`${row.issue}-${row.metric}`} className="border-t border-[var(--line)] hover:bg-sage/10">
+              <td className="px-3 py-2">{row.issue}</td>
+              <td className="px-3 py-2 font-mono text-[12px]">{row.metric}</td>
+              <td className="px-3 py-2 text-ink-soft">{row.rationale || "Not disclosed"}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
       </div>

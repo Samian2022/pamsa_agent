@@ -217,49 +217,94 @@ export async function buildEngagementWorkbook(engagement: Engagement) {
   }
   stakeholders.columns = [{ width: 24 }, { width: 50 }, { width: 50 }];
 
+  const key = workbook.addWorksheet("Scoring Key");
+  const framework = engagement.artifacts.scoringFramework;
+  addHeader(key, "Scoring key", "Topics, criteria, time horizons, and the materiality threshold");
+  key.addRow([]);
+  if (framework) {
+    key.addRow(["Why 1 to 5", framework.scaleChoiceRationale]);
+    key.addRow(["Topic set rationale", framework.topicSelectionRationale]);
+    key.addRow(["Impact tests", framework.impactDimensions]);
+    key.addRow(["Impact includes value chain", framework.impactIncludesValueChain ? "Yes" : "No"]);
+    key.addRow(["Harm norms", framework.socialNormsUsed]);
+    key.addRow(["Impact time horizons", framework.impactTimeHorizons]);
+    key.addRow(["Impact time-horizon why", framework.impactTimeHorizonRationale]);
+    key.addRow(["Impact bands", framework.impactBands]);
+    key.addRow(["Financial tests", framework.financialDimensions]);
+    key.addRow(["Magnitude on", framework.financialMagnitudeOn]);
+    key.addRow(["Financial time horizons", framework.financialTimeHorizons]);
+    key.addRow(["Financial time-horizon why", framework.financialTimeHorizonRationale]);
+    key.addRow(["Time horizons vs impact", framework.timeHorizonVsImpact]);
+    key.addRow(["Financial bands", framework.financialBands]);
+    key.addRow(["Threshold", framework.thresholdRule]);
+    key.addRow(["Threshold why", framework.thresholdRationale]);
+    key.addRow(["Aligned to company financials", framework.alignedToCompanyFinancials]);
+    key.addRow([]);
+    key.addRow(["ESRS", "Topic", "Pillar", "Rationale", "Evidence"]);
+    styleHeaderRow(key, key.lastRow?.number || 22);
+    for (const topic of framework.topics) {
+      key.addRow([topic.esrs, topic.name, topic.pillar, topic.rationale, topic.evidence]);
+    }
+  } else {
+    key.addRow(["No scoring key saved. Lock climate (E1) plus two more environmental topics and three social before scoring IROs."]);
+  }
+  key.columns = [{ width: 28 }, { width: 28 }, { width: 16 }, { width: 50 }, { width: 50 }];
+
   const matrix = workbook.addWorksheet("DMA Matrix");
-  addHeader(matrix, "Double materiality scores", "Disclosed vs undisclosed / emerging");
+  addHeader(matrix, "IRO scores", "Score IROs, not topic labels. Rationale must match the scoring key.");
   matrix.addRow([]);
   matrix.addRow([
-    "Issue",
+    "IRO",
+    "Topic",
+    "Kind",
     "Definition",
+    "Value chain",
     "Disclosed",
-    "Emerging",
     "Financial (X)",
     "Impact (Y)",
     "Financial evidence",
     "Impact evidence",
-    "Disclosure status",
+    "Scale",
+    "Scope",
+    "Remediability",
+    "Impact likelihood",
+    "Financial magnitude",
+    "Financial probability",
+    "Material",
+    "Material why",
+    "Metrics",
     "Confidence",
-    "Metric",
-    "Data quality",
-    "ESRS",
-    "Method gap",
-    "Company judgment",
     "Layer",
   ]);
   styleHeaderRow(matrix, 4);
   for (const row of engagement.artifacts.issueScores || []) {
     matrix.addRow([
       row.issue,
-      row.definition,
+      row.esrsTopic || row.topicArea || row.esrs || "",
+      row.iroKind || "",
+      row.iroDescription || row.definition,
+      row.valueChainLocation || "",
       row.disclosed ? "Yes" : "No",
-      row.emerging ? "Yes" : "No",
       row.financialScore,
       row.impactScore,
       row.financialEvidence,
       row.impactEvidence,
-      row.disclosureStatus,
+      row.impactScale ? `${row.impactScale.score}: ${row.impactScale.rationale}` : "",
+      row.impactScope ? `${row.impactScope.score}: ${row.impactScope.rationale}` : "",
+      row.impactRemediability ? `${row.impactRemediability.score}: ${row.impactRemediability.rationale}` : "",
+      row.impactLikelihood ? `${row.impactLikelihood.score}: ${row.impactLikelihood.rationale}` : "",
+      row.financialMagnitude ? `${row.financialMagnitude.score}: ${row.financialMagnitude.rationale}` : "",
+      row.financialProbability ? `${row.financialProbability.score}: ${row.financialProbability.rationale}` : "",
+      row.material === undefined ? "" : row.material ? "Yes" : "No",
+      row.materialRationale || "",
+      (row.recommendedMetrics || [])
+        .map((metric) => `${metric.axis}: ${metric.metric} (${metric.whyLinkedToCriteria})`)
+        .join(" | ") || row.recommendedMetric,
       row.confidence,
-      row.recommendedMetric,
-      row.dataQuality,
-      row.esrs || "",
-      row.methodologyGapScore ?? "",
-      row.companyJudgment || "",
       row.layer || "",
     ]);
   }
-  matrix.columns = Array.from({ length: 16 }, () => ({ width: 22 }));
+  matrix.columns = Array.from({ length: 21 }, () => ({ width: 24 }));
 
   const disclosed = workbook.addWorksheet("Disclosed Issues");
   addHeader(disclosed, "Disclosed issues");

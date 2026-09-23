@@ -35,6 +35,18 @@ export const IMPACT_BANDS = [
   "Critical: regulation in force, business-model pressure",
 ] as const;
 
+export function rationaleMatchesBand(rationale: string, bandText: string) {
+  if (!rationale || !bandText) return true;
+  const tokens = bandText
+    .toLowerCase()
+    .split(/[^a-z0-9%]+/)
+    .filter((token) => token.length > 4);
+  if (tokens.length < 3) return true;
+  const haystack = rationale.toLowerCase();
+  const hits = tokens.filter((token) => haystack.includes(token)).length;
+  return hits >= 2;
+}
+
 export function confidencePercent(value: string) {
   if (value === "high") return 86;
   if (value === "medium") return 64;
