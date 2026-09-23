@@ -99,7 +99,7 @@ export function EngagementApp({
     if (!busy) return;
     const timer = window.setInterval(() => {
       void refresh();
-    }, 1200);
+    }, 3000);
     return () => window.clearInterval(timer);
   }, [busy]);
 
@@ -310,7 +310,7 @@ export function EngagementApp({
               <div className={`mx-auto w-full space-y-8 ${engagement.stage <= 1 ? "max-w-none" : "max-w-[1200px]"}`}>
                 {view === "workspace" || view === "issues" ? (
                   <>
-                    {engagement.stage <= 1 ? (
+                    {engagement.stage <= 1 && !engagement.artifacts.selectedCompany ? (
                       engagement.artifacts.researchCandidates?.length ? (
                         <ResearchCards engagement={engagement} onSelect={selectCompany} />
                       ) : (
@@ -323,7 +323,9 @@ export function EngagementApp({
                         />
                       )
                     ) : null}
-                    {engagement.stage >= 2 || engagement.artifacts.discoveryCards?.length ? (
+                    {engagement.stage >= 2 ||
+                    engagement.artifacts.selectedCompany ||
+                    engagement.artifacts.discoveryCards?.length ? (
                       <div id="review-findings">
                         <HypothesisCards
                           engagement={engagement}
@@ -334,6 +336,7 @@ export function EngagementApp({
                       </div>
                     ) : null}
                     {engagement.stage === 2 &&
+                    engagement.artifacts.discoveryCards?.length &&
                     (engagement.artifacts.snapshot ||
                       engagement.artifacts.disclosureAudit?.length ||
                       engagement.artifacts.baselineMetrics?.length) ? (

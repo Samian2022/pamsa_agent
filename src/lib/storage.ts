@@ -66,29 +66,68 @@ export function createEngagement(user: SessionUser, title = "New engagement"): E
 }
 
 function normalizeEngagement(engagement: Engagement): Engagement {
+  const artifacts = {
+    ...engagement.artifacts,
+    pricingScope: engagement.artifacts.pricingScope
+      ? {
+          ...engagement.artifacts.pricingScope,
+          modelTypes: engagement.artifacts.pricingScope.modelTypes || [],
+          buildMode: engagement.artifacts.pricingScope.buildMode || "unset",
+        }
+      : engagement.artifacts.pricingScope,
+    financialModels: (engagement.artifacts.financialModels || []).map((model) => ({
+      ...model,
+      modelType: model.modelType || "hybrid",
+    })),
+  };
+  const stage =
+    artifacts.selectedCompany && engagement.stage < 2 ? 2 : engagement.stage;
   return {
     ...engagement,
+    stage,
     discoveryLog: engagement.discoveryLog || [],
     probeLog: engagement.probeLog || [],
     dataGapLog: engagement.dataGapLog || [],
     assumptionCheckpoints: engagement.assumptionCheckpoints || [],
     methodology: engagement.methodology || emptyMethodology(),
     documents: engagement.documents || [],
-    artifacts: {
-      ...engagement.artifacts,
-      pricingScope: engagement.artifacts.pricingScope
-        ? {
-            ...engagement.artifacts.pricingScope,
-            modelTypes: engagement.artifacts.pricingScope.modelTypes || [],
-            buildMode: engagement.artifacts.pricingScope.buildMode || "unset",
-          }
-        : engagement.artifacts.pricingScope,
-      financialModels: (engagement.artifacts.financialModels || []).map((model) => ({
-        ...model,
-        modelType: model.modelType || "hybrid",
-      })),
-    },
+    artifacts,
   };
+}
+
+function longer<T>(a: T[] | undefined, b: T[] | undefined) {
+  return (a?.length || 0) >= (b?.length || 0) ? a || [] : b || [];
+}
+
+function mergeEngagement(latest: Engagement, incoming: Engagement): Engagement {
+  const artifacts = {
+    ...latest.artifacts,
+    ...incoming.artifacts,
+    selectedCompany: incoming.artifacts.selectedCompany || latest.artifacts.selectedCompany,
+    discoveryCards: longer(incoming.artifacts.discoveryCards, latest.artifacts.discoveryCards),
+    researchCandidates: longer(incoming.artifacts.researchCandidates, latest.artifacts.researchCandidates),
+    issueScores: longer(incoming.artifacts.issueScores, latest.artifacts.issueScores),
+    disclosureAudit: longer(incoming.artifacts.disclosureAudit, latest.artifacts.disclosureAudit),
+    baselineMetrics: longer(incoming.artifacts.baselineMetrics, latest.artifacts.baselineMetrics),
+    methodologyGaps: longer(incoming.artifacts.methodologyGaps, latest.artifacts.methodologyGaps),
+    operationsNews: longer(incoming.artifacts.operationsNews, latest.artifacts.operationsNews),
+    reconciliation: longer(incoming.artifacts.reconciliation, latest.artifacts.reconciliation),
+    financialModels: longer(incoming.artifacts.financialModels, latest.artifacts.financialModels),
+  };
+  return normalizeEngagement({
+    ...latest,
+    ...incoming,
+    stage: Math.max(latest.stage, incoming.stage) as Engagement["stage"],
+    artifacts,
+    documents: longer(incoming.documents, latest.documents),
+    discoveryLog: longer(incoming.discoveryLog, latest.discoveryLog),
+    probeLog: longer(incoming.probeLog, latest.probeLog),
+    dataGapLog: longer(incoming.dataGapLog, latest.dataGapLog),
+    assumptionCheckpoints: longer(incoming.assumptionCheckpoints, latest.assumptionCheckpoints),
+    citations: longer(incoming.citations, latest.citations),
+    assumptions: longer(incoming.assumptions, latest.assumptions),
+    messages: longer(incoming.messages, latest.messages),
+  });
 }
 
 async function ensureLocalDir() {
@@ -138,12 +177,17 @@ export async function getEngagement(id: string): Promise<Engagement | null> {
 }
 
 export async function saveEngagement(engagement: Engagement) {
-  engagement.updatedAt = new Date().toISOString();
+  const incoming = normalizeEngagement(engagement);
+  const latest = usesBlob() ? await readBlob(incoming.id) : await readLocal(incoming.id);
+  const merged = latest ? mergeEngagement(normalizeEngagement(latest), incoming) : incoming;
+  merged.id = incoming.id;
+  merged.updatedAt = new Date().toISOString();
   if (usesBlob()) {
-    await writeBlob(engagement);
+    await writeBlob(merged);
   } else {
-    await writeLocal(engagement);
+    await writeLocal(merged);
   }
+  return merged;
 }
 
 export async function updateEngagement(
@@ -157,8 +201,7 @@ export async function updateEngagement(
     }
     const next = mutator(current);
     next.id = id;
-    await saveEngagement(next);
-    return next;
+    return saveEngagement(next);
   });
 }
 

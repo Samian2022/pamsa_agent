@@ -239,6 +239,7 @@ export async function loadDocumentTextForPrompt(
   const recent = [...documents]
     .filter((item) => item.extractStatus === "ok")
     .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
+    .filter((item, index, rows) => rows.findIndex((row) => row.name === item.name) === index)
     .slice(0, PROMPT_DOC_MAX_FILES);
 
   const blocks: string[] = [];

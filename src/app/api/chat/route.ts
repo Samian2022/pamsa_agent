@@ -1,4 +1,4 @@
-import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
+import { convertToModelMessages, pruneMessages, stepCountIs, streamText, type UIMessage } from "ai";
 import { createAgentTools } from "@/lib/agent/tools";
 import { buildSystemPrompt } from "@/lib/agent/prompt";
 import { getCurrentUser } from "@/lib/auth";
@@ -50,11 +50,20 @@ export async function POST(request: Request) {
       (engagement.stage >= 2 && cardCount < 6));
   const tools = createAgentTools(engagementId);
   const documentBodies = await loadDocumentTextForPrompt(engagementId, engagement.documents || []);
+  const history = findingExtract
+    ? messages.filter((message) => message.role === "user").slice(-1)
+    : messages;
+  const modelMessages = pruneMessages({
+    messages: await convertToModelMessages(history, { tools }),
+    toolCalls: findingExtract ? "all" : "before-last-message",
+    reasoning: "before-last-message",
+    emptyMessages: "remove",
+  });
 
   const result = streamText({
     model: getModel(),
     system: buildSystemPrompt(engagement, { documentBodies }),
-    messages: await convertToModelMessages(messages, { tools }),
+    messages: modelMessages,
     tools,
     timeout: { totalMs: 50_000, toolMs: 12_000 },
     stopWhen: stepCountIs(findingExtract ? 2 : decisionTurn ? 3 : 5),
