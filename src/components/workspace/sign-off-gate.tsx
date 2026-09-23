@@ -91,7 +91,7 @@ export function SignOffGate({
             }`}
           >
             {complete
-              ? "Lock DMA and begin pricing models"
+              ? "Continue to pricing"
               : "Complete checklist to unlock pricing models"}
           </button>
         </div>

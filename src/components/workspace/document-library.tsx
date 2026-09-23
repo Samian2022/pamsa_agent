@@ -1,10 +1,16 @@
 "use client";
 
 import { useRef, useState, type DragEvent } from "react";
-import { formatFileSize, formatRelative } from "@/lib/format";
+import { formatFileSize } from "@/lib/format";
+import { RelativeTime } from "@/components/relative-time";
 import type { Engagement, UploadedDocument } from "@/lib/types";
 
 const ACCEPT = ".pdf,.txt,.md,.csv,.json,.html,.htm,.xlsx";
+
+export function documentReviewPrompt(names: string[]) {
+  const files = names.join(", ");
+  return `I uploaded ${files}. Read with read_uploaded_document. Save at most 6 findings as discovery cards (merge with existing) and log_discovery with reaction pending. In chat give a short numbered list only (issue, one sentence of evidence, filename). Then STOP. I will press This is material, Not material, or Need more evidence on each card. Do not dump a long memo.`;
+}
 
 function statusLabel(doc: UploadedDocument) {
   if (doc.extractStatus === "ok") return `${doc.charCount.toLocaleString()} characters extracted`;
@@ -52,11 +58,7 @@ export function DocumentLibrary({
     }
     setBusyName(null);
     if (uploaded.length > 0) {
-      onAskAgent(
-        uploaded.length === 1
-          ? `I uploaded ${uploaded[0]}. Treat it as a primary source. Use read_uploaded_document if you need more than the excerpt.`
-          : `I uploaded ${uploaded.length} documents: ${uploaded.join(", ")}. Treat them as primary sources. Use read_uploaded_document if you need more than the excerpts.`,
-      );
+      onAskAgent(documentReviewPrompt(uploaded));
     }
   }
 
@@ -86,9 +88,15 @@ export function DocumentLibrary({
       <div className="mb-4">
         <h2 className="section-kicker text-[16px] md:text-[20px]">Source documents</h2>
         <p className="mt-2 text-[13px] leading-6 text-ink-soft">
-          Upload filings, sustainability reports, supplier lists, or notes. The agent reads extracted text as
-          primary evidence. PDF, TXT, MD, CSV, JSON, HTML, and XLSX, up to 4 MB each, 12 files per engagement.
+          Upload a filing, ESG report, or notes. The agent reads it, turns the important points into a few review
+          cards, and waits. You decide what is material. PDF, TXT, MD, CSV, JSON, HTML, and XLSX, up to 4 MB each.
         </p>
+        <ol className="mt-3 list-decimal space-y-1 pl-5 text-[13px] leading-6 text-ink-soft">
+          <li>You upload. PAMSA extracts the text.</li>
+          <li>The agent reads it and saves up to 6 findings as cards.</li>
+          <li>You press This is material, Not material, or Need more evidence on each card.</li>
+          <li>Accepted items go into your Discovery log and become the DMA. Ask for another batch when you are ready.</li>
+        </ol>
       </div>
 
       <div
@@ -136,7 +144,7 @@ export function DocumentLibrary({
                 <div className="min-w-0">
                   <p className="truncate text-[14px] font-medium text-ink">{doc.name}</p>
                   <p className="mt-1 text-[12px] text-ink-soft">
-                    {formatFileSize(doc.size)} · {statusLabel(doc)} · uploaded {formatRelative(doc.uploadedAt)}
+                    {formatFileSize(doc.size)} · {statusLabel(doc)} · uploaded <RelativeTime iso={doc.uploadedAt} />
                   </p>
                   {doc.notes ? <p className="mt-1 text-[12px] text-amber">{doc.notes}</p> : null}
                 </div>
@@ -150,13 +158,9 @@ export function DocumentLibrary({
                   <button
                     type="button"
                     className="rounded-full border border-sage/40 px-3 py-1 text-[12px] text-sage"
-                    onClick={() =>
-                      onAskAgent(
-                        `Use ${doc.name} (document id ${doc.id}) as a primary source. Call read_uploaded_document if you need more than the excerpt.`,
-                      )
-                    }
+                    onClick={() => onAskAgent(documentReviewPrompt([doc.name]))}
                   >
-                    Use in research
+                    Ask agent to review
                   </button>
                   <button
                     type="button"

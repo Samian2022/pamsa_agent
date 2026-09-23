@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { STAGES } from "@/lib/stages";
-import { formatRelative } from "@/lib/format";
+import { RelativeTime } from "@/components/relative-time";
 import type { SessionUser } from "@/lib/types";
 
 type Summary = {
@@ -80,9 +81,9 @@ export function WorkspaceHome({
           </div>
         ) : (
           engagements.map((item, index) => (
-            <button
+            <Link
               key={item.id}
-              onClick={() => router.push(`/workspace/${item.id}`)}
+              href={`/workspace/${item.id}`}
               className="lift animate-slide-left rounded-3xl border border-[var(--line)] bg-white/80 p-5 text-left"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
@@ -99,9 +100,9 @@ export function WorkspaceHome({
                 </span>
               </div>
               <p className="mt-3 text-[12px] text-ink-soft">
-                Updated {formatRelative(item.updatedAt)}. Opened by {item.createdBy.name}.
+                <RelativeTime iso={item.updatedAt} prefix="Updated " suffix={` by ${item.createdBy.name}.`} />
               </p>
-            </button>
+            </Link>
           ))
         )}
       </section>

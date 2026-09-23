@@ -9,6 +9,7 @@ import type {
   MethodologyProgress,
   PricingBuildMode,
   PricingModelType,
+  UserReaction,
 } from "@/lib/types";
 import { MaterialityMatrix } from "./materiality-matrix";
 
@@ -53,66 +54,102 @@ function StatusDots({
 export function HypothesisCards({
   engagement,
   onSelect,
+  onDecide,
 }: {
   engagement: Engagement;
   onSelect: (issue: string) => void;
+  onDecide?: (issue: string, reaction: UserReaction) => void;
 }) {
   const cards = engagement.artifacts.discoveryCards || [];
+  const pending = cards.filter((card) => {
+    const reaction = engagement.discoveryLog.find((item) => item.issue === card.issue)?.reaction;
+    return !reaction || reaction === "pending";
+  }).length;
   if (!cards.length) {
     return (
       <div>
         <PanelHeader
-          title="Potential material issues"
-          subtitle="These hypotheses come from the disclosure audit, peer gaps, and the last 12 months of operations. Confirm, dispute, monitor, or skip. There is no cap on how many we can probe."
+          title="Review findings"
+          subtitle="The agent proposes. You decide. Nothing enters the DMA until you press a button on a card."
         />
-        <p className="text-sm text-ink-soft">Pick an issue above. Move the sliders. Build your assessment.</p>
+        <p className="text-sm text-ink-soft">
+          Upload a filing or ask the agent to run the audit. Findings appear here in small batches so you can accept, reject, or flag each one.
+        </p>
       </div>
     );
   }
   return (
     <div className="space-y-3">
-        <PanelHeader
-          title="Potential material issues"
-          subtitle="These hypotheses come from the disclosure audit, peer gaps, and the last 12 months of operations. Confirm, dispute, monitor, or skip. There is no cap on how many we can probe."
-        />
+      <PanelHeader
+        title="Review findings"
+        subtitle={`${pending} still need your call. This is material puts it in the DMA. Not material keeps it out. Need more evidence sends the agent back to dig.`}
+      />
       {cards.map((card, index) => {
         const reaction = engagement.discoveryLog.find((item) => item.issue === card.issue)?.reaction;
+        const pendingCard = !reaction || reaction === "pending";
         const tag =
           reaction === "disputed"
-            ? "Under investigation by you"
+            ? "You said this is not material"
             : reaction === "accepted"
-              ? "Included in your DMA"
-              : "Undisclosed by company";
+              ? "You said this is material"
+              : reaction === "deeper-investigation"
+                ? "You asked for more evidence"
+                : "Waiting for your call";
         const bar =
           reaction === "accepted" ? "border-sage" : reaction === "disputed" ? "border-amber" : "border-rust";
         return (
-          <button
+          <article
             key={card.issue}
-            type="button"
-            onClick={() => onSelect(card.issue)}
-            className={`lift animate-slide-left group w-full rounded-xl border-l-[2px] ${bar} bg-white p-4 text-left shadow-sm`}
+            className={`lift animate-slide-left rounded-xl border-l-[2px] ${bar} bg-white p-4 shadow-sm`}
             style={{ animationDelay: `${index * 0.1}s` }}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="serif text-[16px] text-forest">{card.issue}</h3>
-                <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-ink-soft">{card.definition}</p>
-                {card.companyDisclosure ? (
-                  <p className="mt-1 line-clamp-1 text-[12px] text-ink-soft">Discloses: {card.companyDisclosure}</p>
-                ) : null}
-                <span className="mt-2 inline-block text-[11px] uppercase tracking-wide text-rust">{tag}</span>
-              </div>
-              <div className="flex flex-col items-end gap-2">
+            <button type="button" onClick={() => onSelect(card.issue)} className="w-full text-left">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="serif text-[16px] text-forest">{card.issue}</h3>
+                  <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-ink-soft">{card.definition}</p>
+                  {card.evidence ? (
+                    <p className="mt-1 line-clamp-2 text-[12px] text-ink-soft">Evidence: {card.evidence}</p>
+                  ) : null}
+                  <span className="mt-2 inline-block text-[11px] uppercase tracking-wide text-rust">{tag}</span>
+                </div>
                 <ConfidenceBadge value={card.confidence} />
-                <StatusDots
-                  researched
-                  validated={reaction === "accepted"}
-                  included={Boolean(engagement.artifacts.issueScores?.some((item) => item.issue === card.issue))}
-                />
-                <span className="hidden text-[11px] text-sage group-hover:inline">View detail</span>
               </div>
-            </div>
-          </button>
+            </button>
+            {onDecide && pendingCard ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="rounded-full bg-sage px-3 py-1.5 text-[12px] font-medium text-white"
+                  onClick={() => onDecide(card.issue, "accepted")}
+                >
+                  This is material
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full bg-rust px-3 py-1.5 text-[12px] font-medium text-white"
+                  onClick={() => onDecide(card.issue, "disputed")}
+                >
+                  Not material
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full bg-amber px-3 py-1.5 text-[12px] font-medium text-forest"
+                  onClick={() => onDecide(card.issue, "deeper-investigation")}
+                >
+                  Need more evidence
+                </button>
+              </div>
+            ) : onDecide ? (
+              <button
+                type="button"
+                className="mt-3 text-[12px] text-sage"
+                onClick={() => onSelect(card.issue)}
+              >
+                Open detail or change your call
+              </button>
+            ) : null}
+          </article>
         );
       })}
     </div>
@@ -132,7 +169,9 @@ export function ProfileView({ engagement }: { engagement: Engagement }) {
     return (
       <div>
         <PanelHeader title="Audit the company" subtitle="Lock the snapshot. Document what they disclose, how they measure it, and what the last 12 months show they should be monitoring." />
-        <p className="text-sm text-ink-soft">After you pick a company, the disclosure audit, baselines, methodology gaps, and operations layer lock here.</p>
+        <p className="text-sm text-ink-soft">
+          After you pick a company, ask the agent in chat to run the disclosure audit. Snapshot, baselines, and gaps will lock here.
+        </p>
       </div>
     );
   }
@@ -310,7 +349,9 @@ export function ScoringPanel({
           title="Score each material issue"
           subtitle="Move the sliders. Read the implications. Challenge the agent. Lock your assessment."
         />
-        <p className="text-sm text-ink-soft">Pick an issue above. Move the sliders. Build your assessment.</p>
+        <p className="text-sm text-ink-soft">
+          Ask the agent to save issue scores after probing. They will appear on this matrix so you can move the sliders.
+        </p>
       </div>
     );
   }
@@ -531,7 +572,9 @@ export function TimelineLog({
               event.tone === "rust" ? "bg-rust" : event.tone === "amber" ? "bg-amber" : "bg-forest"
             }`}
           />
-          <p className="text-[11px] uppercase tracking-wide text-taupe">{new Date(event.at).toLocaleString()}</p>
+          <p className="text-[11px] uppercase tracking-wide text-taupe" suppressHydrationWarning>
+            {new Date(event.at).toLocaleString()}
+          </p>
           <p className="mt-1 text-[14px] font-medium text-forest">{event.title}</p>
           <p className="mt-1 text-[13px] text-ink-soft">{event.body}</p>
         </li>
@@ -621,9 +664,83 @@ export function TeachForm({
       </div>
       <p className={`text-[13px] font-medium ${ready ? "text-sage" : "text-rust"}`}>
         {ready
-          ? "Methodology is unlocked. You can start the model build."
+          ? "Methodology is unlocked. The workspace will move you into the model build."
           : "The model build stays locked until you have walked the types, walked the anatomy, and chosen a build mode."}
       </p>
+    </div>
+  );
+}
+
+export function ScopePicker({
+  engagement,
+  onScope,
+}: {
+  engagement: Engagement;
+  onScope: (issues: string[]) => void;
+}) {
+  const options = engagement.artifacts.issueScores?.length
+    ? engagement.artifacts.issueScores.map((item) => item.issue)
+    : engagement.artifacts.discoveryCards?.length
+      ? engagement.artifacts.discoveryCards.map((item) => item.issue)
+      : engagement.discoveryLog.filter((item) => item.reaction === "accepted").map((item) => item.issue);
+  const locked = engagement.artifacts.pricingScope?.issues || [];
+  const [picked, setPicked] = useState<string[]>(locked);
+
+  if (!options.length) {
+    return (
+      <div>
+        <PanelHeader
+          title="Choose issues to model"
+          subtitle="Pricing needs 2 to 4 material issues with a real P&L path."
+        />
+        <p className="text-sm text-ink-soft">
+          No scored issues yet. Finish DMA scoring, or name issues in chat and ask the agent to save them.
+        </p>
+      </div>
+    );
+  }
+
+  function toggle(issue: string) {
+    setPicked((current) => {
+      if (current.includes(issue)) return current.filter((item) => item !== issue);
+      if (current.length >= 4) return current;
+      return [...current, issue];
+    });
+  }
+
+  return (
+    <div>
+      <PanelHeader
+        title="Choose issues to model"
+        subtitle="Pick 2 to 4. Prefer issues with a cost, revenue, capex, or WACC path you can source."
+      />
+      <ul className="space-y-2">
+        {options.map((issue) => {
+          const on = picked.includes(issue);
+          return (
+            <li key={issue}>
+              <button
+                type="button"
+                onClick={() => toggle(issue)}
+                className={`w-full rounded-xl border px-4 py-3 text-left text-[14px] ${
+                  on ? "border-sage bg-sage/10 text-forest" : "border-[var(--line)] bg-white text-ink"
+                }`}
+              >
+                {on ? "Selected · " : ""}
+                {issue}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <button
+        type="button"
+        disabled={picked.length < 2}
+        onClick={() => onScope(picked)}
+        className="btn-primary mt-4 rounded-full px-4 py-2 text-sm disabled:opacity-50"
+      >
+        {picked.length < 2 ? "Pick at least 2 issues" : "Lock scope and teach methodology"}
+      </button>
     </div>
   );
 }

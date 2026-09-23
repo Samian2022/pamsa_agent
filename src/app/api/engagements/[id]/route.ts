@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { canEnterStage, methodologyReady, signOffComplete } from "@/lib/stages";
 import { deleteEngagement, getEngagement, updateEngagement } from "@/lib/storage";
-import type { IssueScore, MethodologyProgress, SignOffState } from "@/lib/types";
+import type { IssueScore, MethodologyProgress, PricingScope, SignOffState, StageId, UserReaction } from "@/lib/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -29,18 +30,63 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     signOff?: SignOffState;
     methodology?: MethodologyProgress;
     issueScores?: IssueScore[];
+    selectedCompany?: string;
+    stage?: StageId;
+    pricingScope?: PricingScope;
+    discoveryReaction?: { issue: string; reaction: UserReaction; notes?: string };
   };
   try {
-    const engagement = await updateEngagement(id, (current) => ({
-      ...current,
-      title: body.title ?? current.title,
-      signOff: body.signOff ?? current.signOff,
-      methodology: body.methodology ?? current.methodology,
-      artifacts: {
-        ...current.artifacts,
-        issueScores: body.issueScores ?? current.artifacts.issueScores,
-      },
-    }));
+    const engagement = await updateEngagement(id, (current) => {
+      const nextSignOff = body.signOff ?? current.signOff;
+      const nextMethodology = body.methodology ?? current.methodology;
+      let nextStage = current.stage;
+      if (typeof body.stage === "number") {
+        if (canEnterStage(body.stage, current.stage, nextSignOff, nextMethodology)) {
+          nextStage = body.stage;
+        }
+      } else if (body.selectedCompany && current.stage === 1) {
+        nextStage = 2;
+      } else if (body.signOff && current.stage === 4 && signOffComplete(nextSignOff)) {
+        if (canEnterStage(5, 4, nextSignOff, nextMethodology)) nextStage = 5;
+      } else if (body.methodology && current.stage === 6 && methodologyReady(nextMethodology)) {
+        if (canEnterStage(7, 6, nextSignOff, nextMethodology)) nextStage = 7;
+      } else if (body.pricingScope && current.stage === 5 && (body.pricingScope.issues?.length || 0) >= 2) {
+        if (canEnterStage(6, 5, nextSignOff, nextMethodology)) nextStage = 6;
+      }
+
+      return {
+        ...current,
+        title: body.title ?? (body.selectedCompany ? `${body.selectedCompany} Materiality Study` : current.title),
+        stage: nextStage,
+        signOff: nextSignOff,
+        methodology: nextMethodology,
+        discoveryLog: body.discoveryReaction
+          ? [
+              ...current.discoveryLog.filter(
+                (item) => item.issue.toLowerCase() !== body.discoveryReaction!.issue.toLowerCase(),
+              ),
+              {
+                id: `d-${Date.now()}`,
+                issue: body.discoveryReaction.issue,
+                raisedAt: new Date().toISOString(),
+                source: current.discoveryLog.find((item) => item.issue === body.discoveryReaction!.issue)?.source || "user review",
+                confidence:
+                  current.discoveryLog.find((item) => item.issue === body.discoveryReaction!.issue)?.confidence ||
+                  current.artifacts.discoveryCards?.find((item) => item.issue === body.discoveryReaction!.issue)?.confidence ||
+                  "medium",
+                reaction: body.discoveryReaction.reaction,
+                notes: body.discoveryReaction.notes,
+              },
+            ]
+          : current.discoveryLog,
+        artifacts: {
+          ...current.artifacts,
+          issueScores: body.issueScores ?? current.artifacts.issueScores,
+          selectedCompany: body.selectedCompany ?? current.artifacts.selectedCompany,
+          pricingScope: body.pricingScope ?? current.artifacts.pricingScope,
+        },
+      };
+    });
     return NextResponse.json({ engagement });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

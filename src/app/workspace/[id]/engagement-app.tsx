@@ -4,19 +4,21 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Markdown from "react-markdown";
-import { buildContextSummary, signOffComplete } from "@/lib/stages";
-import type { Engagement, IssueScore, MethodologyProgress, SessionUser, SignOffState } from "@/lib/types";
+import { composerPlaceholder, nextAction, signOffComplete, methodologyReady } from "@/lib/stages";
+import type { Engagement, IssueScore, MethodologyProgress, PricingScope, SessionUser, SignOffState, UserReaction } from "@/lib/types";
 import { LeftSidebar } from "@/components/workspace/left-sidebar";
 import type { WorkspaceView } from "@/components/workspace/views";
 import { RightSidebar } from "@/components/workspace/right-sidebar";
 import { SignOffGate } from "@/components/workspace/sign-off-gate";
-import { ComposerAttach, DocumentLibrary } from "@/components/workspace/document-library";
+import { ComposerAttach, DocumentLibrary, documentReviewPrompt } from "@/components/workspace/document-library";
+import { DiscoveryBrief } from "@/components/workspace/discovery-brief";
 import {
   HypothesisCards,
   MetricsGrid,
   ModelBuilder,
   ProfileView,
   ResearchCards,
+  ScopePicker,
   ScoringPanel,
   TeachForm,
   TimelineLog,
@@ -33,6 +35,27 @@ function stageTitle(stage: number) {
   if (stage === 3) return "Probe, then score";
   if (stage === 4) return "Lock your assessment";
   return "Model the impact";
+}
+
+function LastAgentNote({
+  messages,
+  onOpenChat,
+}: {
+  messages: UIMessage[];
+  onOpenChat: () => void;
+}) {
+  const last = [...messages].reverse().find((message) => message.role === "assistant");
+  const text = last?.parts.map(partText).join("\n").trim();
+  if (!text) return null;
+  return (
+    <div className="rounded-2xl border border-[var(--line)] bg-white/90 px-4 py-3">
+      <p className="text-[10px] uppercase tracking-[0.16em] text-ink-soft">Latest from the agent</p>
+      <p className="mt-2 line-clamp-5 text-[14px] leading-6 text-ink">{text}</p>
+      <button type="button" onClick={onOpenChat} className="mt-2 text-[12px] text-sage">
+        Open full conversation
+      </button>
+    </div>
+  );
 }
 
 export function EngagementApp({
@@ -81,34 +104,84 @@ export function EngagementApp({
     if (data.engagement) setEngagement(data.engagement);
   }
 
-  async function onSignOff(signOff: SignOffState) {
+  async function patchEngagement(body: Record<string, unknown>) {
     const response = await fetch(`/api/engagements/${initial.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ signOff }),
+      body: JSON.stringify(body),
     });
     const data = (await response.json()) as { engagement?: Engagement };
     if (data.engagement) setEngagement(data.engagement);
+    return data.engagement;
+  }
+
+  async function onSignOff(signOff: SignOffState) {
+    const wasComplete = signOffComplete(engagement.signOff);
+    const next = await patchEngagement({ signOff });
+    if (next && !wasComplete && signOffComplete(next.signOff) && next.stage >= 5) {
+      setSignOffOpen(false);
+      void sendText(
+        "DMA sign-off is complete. Help me pick 2 to 4 issues with a clear P&L path, then save_pricing_scope.",
+      );
+    }
   }
 
   async function onMethodology(methodology: MethodologyProgress) {
-    const response = await fetch(`/api/engagements/${initial.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ methodology }),
-    });
-    const data = (await response.json()) as { engagement?: Engagement };
-    if (data.engagement) setEngagement(data.engagement);
+    const wasReady = methodologyReady(engagement.methodology);
+    const next = await patchEngagement({ methodology });
+    if (next && !wasReady && methodologyReady(next.methodology) && next.stage >= 7) {
+      void sendText(
+        "Methodology teaching is complete. Start Stage 7B and save_financial_model for each scoped issue.",
+      );
+    }
   }
 
   async function onScores(issueScores: IssueScore[]) {
-    const response = await fetch(`/api/engagements/${initial.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ issueScores }),
-    });
-    const data = (await response.json()) as { engagement?: Engagement };
-    if (data.engagement) setEngagement(data.engagement);
+    await patchEngagement({ issueScores });
+  }
+
+  async function selectCompany(company: string) {
+    await patchEngagement({ selectedCompany: company });
+    setView("workspace");
+    void sendText(
+      `I selected ${company}. Begin the Stage 2 disclosure audit. Save the snapshot, disclosure channels, baselines, methodology gaps, operations news, and reconciliation.`,
+    );
+  }
+
+  async function decideFinding(issue: string, reaction: UserReaction, note = "") {
+    setSelectedIssue(issue);
+    setRightOpen(true);
+    await patchEngagement({ discoveryReaction: { issue, reaction, notes: note } });
+    if (reaction === "accepted") {
+      void sendText(
+        `I agree this is material: "${issue}". ${note || "Please log_discovery as accepted."}`.trim(),
+      );
+    } else if (reaction === "disputed") {
+      void sendText(
+        `I do not treat "${issue}" as material. ${note || "Probe it, bring new evidence, and log_probe the revision."}`.trim(),
+      );
+    } else {
+      void sendText(
+        `Flag "${issue}" for more evidence. ${note || "Keep it pending and keep it on the discovery log."}`.trim(),
+      );
+    }
+  }
+
+  async function lockScope(issues: string[]) {
+    const pricingScope: PricingScope = {
+      issues,
+      horizonYears: 5,
+      scenarios: "base-stress-upside",
+      publicDataOnly: true,
+      includeUndisclosed: true,
+      modelTypes: [],
+      buildMode: "unset",
+      notes: `User selected ${issues.join(", ")} for pricing.`,
+    };
+    await patchEngagement({ pricingScope });
+    void sendText(
+      `I locked pricing scope on: ${issues.join(", ")}. Walk Stage 6 methodology (five types, eight anatomy components, then a build mode) and save_methodology.`,
+    );
   }
 
   const busy = status === "submitted" || status === "streaming";
@@ -174,14 +247,26 @@ export function EngagementApp({
             </button>
             <h2 className="section-kicker min-w-0 flex-1 text-[16px] md:text-[20px]">{stageTitle(engagement.stage)}</h2>
           </div>
-          <p className="hidden text-[12px] text-ink-soft lg:block">
-            {user.name}
-            {engagement.artifacts.selectedCompany ? ` · ${engagement.artifacts.selectedCompany}` : ""}
-          </p>
+          <div className="flex items-center gap-2">
+            {engagement.stage === 4 && !signOffComplete(engagement.signOff) ? (
+              <button
+                type="button"
+                className="rounded-full border border-sage/40 px-3 py-1 text-[12px] text-sage"
+                onClick={() => setSignOffOpen(true)}
+              >
+                Open sign-off
+              </button>
+            ) : null}
+            <p className="hidden text-[12px] text-ink-soft lg:block">
+              {user.name}
+              {engagement.artifacts.selectedCompany ? ` · ${engagement.artifacts.selectedCompany}` : ""}
+            </p>
+          </div>
         </header>
 
-        <div className="organic-bg border-b border-[var(--line)] px-4 py-3 text-[12px] leading-5 text-ink-soft">
-          {buildContextSummary(engagement)}
+        <div className="border-b border-[var(--line)] bg-white/70 px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[0.16em] text-taupe">Now</p>
+          <p className="mt-1 text-[13px] leading-6 text-forest">{nextAction(engagement)}</p>
         </div>
 
         <div className="flex min-h-0 flex-1">
@@ -191,14 +276,26 @@ export function EngagementApp({
                 {view === "workspace" || view === "issues" ? (
                   <>
                     {engagement.stage <= 1 ? (
-                      <ResearchCards
-                        engagement={engagement}
-                        onSelect={(company) => {
-                          void sendText(`Start DMA on ${company}. Use set_selected_company and begin the Stage 2 disclosure audit.`);
-                        }}
-                      />
+                      engagement.artifacts.researchCandidates?.length ? (
+                        <ResearchCards engagement={engagement} onSelect={selectCompany} />
+                      ) : (
+                        <DiscoveryBrief
+                          busy={busy}
+                          onSubmit={(text) => {
+                            setView("chat");
+                            void sendText(text);
+                          }}
+                        />
+                      )
                     ) : null}
                     {engagement.stage === 2 ? <ProfileView engagement={engagement} /> : null}
+                    {engagement.stage >= 2 || engagement.artifacts.discoveryCards?.length ? (
+                      <HypothesisCards
+                        engagement={engagement}
+                        onSelect={selectIssue}
+                        onDecide={(issue, reaction) => void decideFinding(issue, reaction)}
+                      />
+                    ) : null}
                     {engagement.stage >= 3 && engagement.stage <= 4 ? (
                       <>
                         <ScoringPanel
@@ -207,18 +304,11 @@ export function EngagementApp({
                           onSelect={selectIssue}
                           onScores={onScores}
                         />
-                        <HypothesisCards engagement={engagement} onSelect={selectIssue} />
                         <MetricsGrid engagement={engagement} />
                       </>
                     ) : null}
                     {engagement.stage === 5 ? (
-                      <div>
-                        <p className="section-kicker mb-4 text-[16px]">Issue selection</p>
-                        <p className="text-[14px] text-ink-soft">
-                          {engagement.artifacts.pricingScope?.notes ||
-                            "Pick 2 to 4 material issues from your DMA to model financially. Which has the clearest P&L pathway?"}
-                        </p>
-                      </div>
+                      <ScopePicker engagement={engagement} onScope={(issues) => void lockScope(issues)} />
                     ) : null}
                     {engagement.stage === 6 ? (
                       <TeachForm engagement={engagement} onMethodology={onMethodology} />
@@ -232,7 +322,8 @@ export function EngagementApp({
                     engagement={engagement}
                     onChange={setEngagement}
                     onAskAgent={(text) => {
-                      setView("chat");
+                      setView("workspace");
+                      setRightOpen(true);
                       void sendText(text);
                     }}
                   />
@@ -242,7 +333,16 @@ export function EngagementApp({
                 {view === "probing" ? <TimelineLog engagement={engagement} mode="probing" /> : null}
                 {view === "assumptions" ? <TimelineLog engagement={engagement} mode="assumptions" /> : null}
 
-                {(view === "chat" || (view === "workspace" && engagement.stage > 1)) && (
+                {view === "workspace" && engagement.stage <= 1 && !engagement.artifacts.discoveryCards?.length ? (
+                  <LastAgentNote
+                    messages={messages}
+                    onOpenChat={() => setView("chat")}
+                  />
+                ) : null}
+
+                {(view === "chat" ||
+                  (view === "workspace" &&
+                    (engagement.stage > 1 || Boolean(engagement.artifacts.discoveryCards?.length)))) && (
                   <div className="space-y-4">
                     {messages.map((message) => (
                       <article
@@ -309,7 +409,7 @@ export function EngagementApp({
                 <textarea
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
-                  placeholder="What's your assessment? Reply with criteria, challenge a finding, pick a company, paste a filing URL, or attach a document."
+                  placeholder={composerPlaceholder(engagement.stage)}
                   className="field-input h-24 flex-1 resize-none rounded-2xl px-3 py-2 text-[14px]"
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
@@ -337,11 +437,9 @@ export function EngagementApp({
                     disabled={busy}
                     onUploaded={(next, names) => {
                       setEngagement(next);
-                      void sendText(
-                        names.length === 1
-                          ? `I uploaded ${names[0]}. Treat it as a primary source. Use read_uploaded_document if you need more than the excerpt.`
-                          : `I uploaded ${names.length} documents: ${names.join(", ")}. Treat them as primary sources.`,
-                      );
+                      setView("workspace");
+                      setRightOpen(true);
+                      void sendText(documentReviewPrompt(names));
                     }}
                   />
                   <button
@@ -363,21 +461,9 @@ export function EngagementApp({
             selectedIssue={selectedIssue}
             open={rightOpen || engagement.stage > 1}
             onClose={() => setRightOpen(false)}
-            onConfirm={(issue, note) => {
-              void sendText(
-                `I agree this is material: "${issue}". ${note || "Please log my validation."}`.trim(),
-              );
-            }}
-            onChallenge={(issue, note) => {
-              void sendText(
-                `I disagree with the finding on "${issue}". ${note || "It does not fully hold yet. Probe it, bring new evidence, and log the revision."}`.trim(),
-              );
-            }}
-            onFlag={(issue, note) => {
-              void sendText(
-                `Flag "${issue}" for investigation. ${note || "Keep it on the discovery log as needing more evidence."}`.trim(),
-              );
-            }}
+            onConfirm={(issue, note) => void decideFinding(issue, "accepted", note)}
+            onChallenge={(issue, note) => void decideFinding(issue, "disputed", note)}
+            onFlag={(issue, note) => void decideFinding(issue, "deeper-investigation", note)}
           />
           ) : null}
         </div>

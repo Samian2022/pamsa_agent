@@ -123,7 +123,8 @@ export function createAgentTools(engagementId: string) {
     }),
 
     set_selected_company: tool({
-      description: "Record the company the user chose and optionally rename the engagement.",
+      description:
+        "Record the company the user chose, rename the engagement, and move Stage 1 into the Stage 2 disclosure audit.",
       inputSchema: z.object({
         company: z.string(),
         title: z.string().optional(),
@@ -131,10 +132,11 @@ export function createAgentTools(engagementId: string) {
       execute: async ({ company, title }) => {
         await updateEngagement(engagementId, (current) => ({
           ...current,
-          title: title || company,
+          title: title || `${company} Materiality Study`,
+          stage: current.stage === 1 ? 2 : current.stage,
           artifacts: { ...current.artifacts, selectedCompany: company },
         }));
-        return { company };
+        return { company, stage: 2 };
       },
     }),
 
@@ -322,7 +324,7 @@ export function createAgentTools(engagementId: string) {
     }),
 
     save_discovery_cards: tool({
-      description: "Save discovery cards / risk hypotheses for undisclosed, peer-gap, or emerging issues. Include disclosure vs ESRS and the operations signal when known.",
+      description: "Save or merge discovery cards / risk hypotheses. New cards are added by issue name. Existing cards with the same name are updated, not wiped.",
       inputSchema: z.object({
         cards: z.array(
           z.object({
@@ -342,11 +344,18 @@ export function createAgentTools(engagementId: string) {
         ),
       }),
       execute: async ({ cards }) => {
-        await updateEngagement(engagementId, (current) => ({
-          ...current,
-          artifacts: { ...current.artifacts, discoveryCards: cards as DiscoveryCard[] },
-        }));
-        return { saved: cards.length };
+        await updateEngagement(engagementId, (current) => {
+          const previous = current.artifacts.discoveryCards || [];
+          const byIssue = new Map(previous.map((card) => [card.issue.toLowerCase(), card]));
+          for (const card of cards as DiscoveryCard[]) {
+            byIssue.set(card.issue.toLowerCase(), card);
+          }
+          return {
+            ...current,
+            artifacts: { ...current.artifacts, discoveryCards: Array.from(byIssue.values()) },
+          };
+        });
+        return { saved: cards.length, mode: "merged" };
       },
     }),
 

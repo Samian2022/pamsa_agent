@@ -173,6 +173,70 @@ export function canEnterStage(
   return true;
 }
 
+export function workspaceNavLabel(stage: number) {
+  if (stage <= 1) return "Candidates";
+  if (stage === 2) return "Company audit";
+  if (stage <= 4) return "Issue list";
+  return "Pricing workspace";
+}
+
+export function composerPlaceholder(stage: number) {
+  if (stage <= 1) return "Answer the research questions, name a company, or attach a filing.";
+  if (stage === 2) return "Challenge the snapshot, paste a filing URL, or ask for the next audit slice.";
+  if (stage === 3) return "Agree, disagree, or ask to probe an issue.";
+  if (stage === 4) return "Confirm sign-off items, or tell the agent what still feels unfinished.";
+  if (stage === 5) return "Name 2 to 4 issues to model, or say which P&L path is clearest.";
+  if (stage === 6) return "Ask for the next teaching step, or confirm a build mode.";
+  return "Challenge an assumption, or ask to run the next scenario.";
+}
+
+export function pendingFindingCount(engagement: Engagement) {
+  const cards = engagement.artifacts.discoveryCards || [];
+  return cards.filter((card) => {
+    const reaction = engagement.discoveryLog.find((item) => item.issue === card.issue)?.reaction;
+    return !reaction || reaction === "pending";
+  }).length;
+}
+
+export function nextAction(engagement: Engagement): string {
+  const pending = pendingFindingCount(engagement);
+  if (pending > 0) {
+    return `${pending} finding${pending === 1 ? "" : "s"} still need your call. On each card, press This is material, Not material, or Need more evidence. The agent waits for you.`;
+  }
+  const company = engagement.artifacts.selectedCompany;
+  if (engagement.stage <= 1) {
+    if (engagement.artifacts.researchCandidates?.length) {
+      return "Press Select on a company to start the disclosure audit.";
+    }
+    return "Fill the brief below or reply in chat with sector, geography, scale, and any constraints. The agent will rank candidates.";
+  }
+  if (engagement.stage === 2) {
+    return company
+      ? `Work through the ${company} disclosure audit in chat. Confirm the snapshot when the layers look right.`
+      : "A company should be locked before the audit. Select one from Candidates or name it in chat.";
+  }
+  if (engagement.stage === 3) {
+    return "Review findings on the cards, then score issues on the matrix.";
+  }
+  if (engagement.stage === 4) {
+    return signOffComplete(engagement.signOff)
+      ? "Sign-off is complete. Continue to pricing scope."
+      : "Open the sign-off checklist and confirm each item you actually own.";
+  }
+  if (engagement.stage === 5) {
+    const count = engagement.artifacts.pricingScope?.issues.length || 0;
+    return count >= 2
+      ? "Scope is set. Continue to methodology teaching."
+      : "Pick 2 to 4 material issues with a clear P&L path.";
+  }
+  if (engagement.stage === 6) {
+    return methodologyReady(engagement.methodology)
+      ? "Methodology is unlocked. Start the model build."
+      : "Walk the five model types and eight components in chat, then tick them here and choose a build mode.";
+  }
+  return "Review assumptions and scenarios. Challenge any number that is not sourced.";
+}
+
 export function buildContextSummary(engagement: Engagement): string {
   const stage = STAGES.find((item) => item.id === engagement.stage);
   const company = engagement.artifacts.selectedCompany || "no company yet";

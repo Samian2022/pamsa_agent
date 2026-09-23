@@ -37,9 +37,10 @@ export function RightSidebar({
   const confidence = score?.confidence || card?.confidence || "medium";
 
   const nextStep = useMemo(() => {
-    if (!selectedIssue) return "Select a finding. The agent proposes, you decide.";
-    if (discovery?.reaction === "accepted") return "You agreed this is material. Check whether the metric and data gap still hold.";
-    if (discovery?.reaction === "disputed") return "You disagreed. Ask the agent for new evidence before you rescore.";
+    if (!selectedIssue) return "Open a finding card. The agent proposes. You decide.";
+    if (discovery?.reaction === "accepted") return "You marked this as material. It stays in your DMA unless you change your call.";
+    if (discovery?.reaction === "disputed") return "You marked this as not material. The agent should bring new evidence before you rescore.";
+    if (discovery?.reaction === "deeper-investigation") return "You asked for more evidence. Wait for the next batch, then decide.";
     return "Let's test this finding together. Do you agree this is material?";
   }, [discovery, selectedIssue]);
 
@@ -78,7 +79,7 @@ export function RightSidebar({
           </>
         ) : (
           <section className="animate-slide-right space-y-3 rounded-xl border border-sage/25 bg-white p-3">
-            <p className="text-[12px] text-ink-soft">Let's test this finding together. Do you agree this is material?</p>
+            <p className="text-[12px] text-ink-soft">The agent proposes. You decide with the three buttons below.</p>
             <p className="text-[12px]">
               <span className="font-medium">What they disclose: </span>
               {card?.companyDisclosure || score?.disclosureStatus || "Not yet mapped."}
@@ -173,7 +174,7 @@ export function RightSidebar({
           onClick={() => selectedIssue && onConfirm(selectedIssue, note)}
           className="btn-primary w-full rounded-full px-3 py-2 text-[13px] font-medium"
         >
-          I Agree
+          This is material
         </button>
         <button
           type="button"
@@ -181,7 +182,7 @@ export function RightSidebar({
           onClick={() => selectedIssue && onChallenge(selectedIssue, note)}
           className="w-full rounded-full bg-rust px-3 py-2 text-[13px] font-medium text-white disabled:opacity-40"
         >
-          I Disagree
+          Not material
         </button>
         <button
           type="button"
@@ -189,7 +190,7 @@ export function RightSidebar({
           onClick={() => selectedIssue && onFlag(selectedIssue, note)}
           className="w-full rounded-full bg-amber px-3 py-2 text-[12px] font-medium text-forest disabled:opacity-40"
         >
-          Flag for Investigation
+          Need more evidence
         </button>
       </div>
     </aside>

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { JOURNEY_STAGES, SIGN_OFF_ITEMS } from "@/lib/stages";
-import { formatRelative } from "@/lib/format";
+import { JOURNEY_STAGES, SIGN_OFF_ITEMS, pendingFindingCount, workspaceNavLabel } from "@/lib/stages";
+import { RelativeTime } from "@/components/relative-time";
 import type { Engagement } from "@/lib/types";
 import { MaterialityMatrix } from "./materiality-matrix";
 import type { WorkspaceView } from "./views";
@@ -66,21 +66,23 @@ export function LeftSidebar({
   const router = useRouter();
   const company = engagement.artifacts.selectedCompany;
   const project = company ? `${company} Materiality Study 2026` : engagement.title;
-  const issuesCount =
-    engagement.artifacts.issueScores?.length ||
-    engagement.artifacts.discoveryCards?.length ||
-    0;
   const signed = SIGN_OFF_ITEMS.filter((item) => engagement.signOff[item.id]?.agreed).length;
   const pendingAssumptions = engagement.assumptionCheckpoints.filter((item) => item.userDecision === "pending").length
     + engagement.assumptions.length;
+  const pendingFindings = pendingFindingCount(engagement);
   const visualStep = engagement.stage >= 5 ? 5 : engagement.stage;
   const links: { id: WorkspaceView; label: string }[] = [
-    { id: "workspace", label: `Issue List (${issuesCount} issues discovered)` },
-    { id: "discovery", label: `Discovery Log (${engagement.discoveryLog.length} findings logged)` },
-    { id: "probing", label: `Probing Log (${engagement.probeLog.length} challenges raised)` },
-    { id: "assumptions", label: `Assumptions (${pendingAssumptions} to validate)` },
-    { id: "signoff", label: `Sign-Off Checklist (${signed}/${SIGN_OFF_ITEMS.length} confirmed)` },
-    { id: "documents", label: `Documents (${engagement.documents?.length || 0} uploaded)` },
+    {
+      id: "workspace",
+      label: pendingFindings
+        ? `Review findings (${pendingFindings} to decide)`
+        : workspaceNavLabel(engagement.stage),
+    },
+    { id: "discovery", label: `Discovery log (${engagement.discoveryLog.length})` },
+    { id: "probing", label: `Probing log (${engagement.probeLog.length})` },
+    { id: "assumptions", label: `Assumptions (${pendingAssumptions})` },
+    { id: "signoff", label: `Sign-off (${signed}/${SIGN_OFF_ITEMS.length})` },
+    { id: "documents", label: `Documents (${engagement.documents?.length || 0})` },
     { id: "chat", label: "Research chat" },
   ];
 
@@ -93,12 +95,14 @@ export function LeftSidebar({
   if (collapsed) {
     return (
       <aside className="flex w-14 flex-col items-center gap-3 bg-forest py-4 text-white">
-        <Link href="/workspace" className="text-[10px] tracking-[0.2em]">
+        <Link href="/workspace" className="text-[10px] tracking-[0.2em]" title="All engagements">
           P
         </Link>
         {JOURNEY_STAGES.map((stage) => (
-          <span
+          <button
             key={stage.key}
+            type="button"
+            onClick={() => onView("workspace")}
             className={`flex h-6 w-6 items-center justify-center rounded-full ${
               stage.done(engagement.stage)
                 ? "bg-sage text-white"
@@ -109,8 +113,30 @@ export function LeftSidebar({
             title={`${stage.name}: ${stage.line}`}
           >
             {stage.done(engagement.stage) ? "✓" : <Icon name={stage.key} />}
-          </span>
+          </button>
         ))}
+        <button
+          type="button"
+          onClick={() => onView("documents")}
+          title="Documents"
+          aria-label="Documents"
+          className={`flex h-6 w-6 items-center justify-center rounded-lg text-[10px] ${
+            view === "documents" ? "bg-white/15 text-white" : "text-white/50 hover:text-white"
+          }`}
+        >
+          D
+        </button>
+        <button
+          type="button"
+          onClick={() => onView("chat")}
+          title="Research chat"
+          aria-label="Research chat"
+          className={`flex h-6 w-6 items-center justify-center rounded-lg text-[10px] ${
+            view === "chat" ? "bg-white/15 text-white" : "text-white/50 hover:text-white"
+          }`}
+        >
+          C
+        </button>
         <button
           type="button"
           onClick={logout}
@@ -131,7 +157,7 @@ export function LeftSidebar({
     <aside className="flex w-[240px] shrink-0 flex-col bg-forest text-white">
       <div className="border-b border-white/10 px-4 py-4">
         <Link href="/workspace" className="text-[10px] uppercase tracking-[0.28em] text-sage">
-          PAMSA
+          All engagements
         </Link>
         <h1 className="serif mt-2 text-[20px] leading-6 text-white">{project}</h1>
         <p className="mt-1 text-[12px] text-white/70">Your research journey</p>
@@ -146,7 +172,12 @@ export function LeftSidebar({
             const done = stage.done(engagement.stage);
             const current = stage.active(engagement.stage);
             return (
-              <div key={stage.key} className="flex items-start gap-2">
+              <button
+                key={stage.key}
+                type="button"
+                onClick={() => onView("workspace")}
+                className="flex w-full items-start gap-2 rounded-lg text-left hover:bg-white/5"
+              >
                 <span
                   className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${
                     done ? "bg-sage text-white" : current ? "bg-white text-sage" : "bg-white/10 text-white/40"
@@ -160,7 +191,7 @@ export function LeftSidebar({
                   </p>
                   <p className="text-[11px] text-white/50">{stage.line}</p>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -195,8 +226,8 @@ export function LeftSidebar({
       </nav>
 
       <div className="border-t border-white/10 px-4 py-4">
-        <p className="text-[11px] text-white/60" title={new Date(engagement.updatedAt).toLocaleString()}>
-          Last updated {formatRelative(engagement.updatedAt)} by you
+        <p className="text-[11px] text-white/60">
+          <RelativeTime iso={engagement.updatedAt} prefix="Last updated " suffix=" by you" />
         </p>
         {engagement.artifacts.issueScores?.length ? (
           <div className="mt-3">
