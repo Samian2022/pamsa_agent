@@ -92,6 +92,16 @@ export function EngagementApp({
     },
   });
 
+  const busy = status === "submitted" || status === "streaming";
+
+  useEffect(() => {
+    if (!busy) return;
+    const timer = window.setInterval(() => {
+      void refresh();
+    }, 1200);
+    return () => window.clearInterval(timer);
+  }, [busy]);
+
   useEffect(() => {
     if (engagement.stage === 4 && !signOffComplete(engagement.signOff)) {
       setSignOffOpen(true);
@@ -144,7 +154,7 @@ export function EngagementApp({
     await patchEngagement({ selectedCompany: company });
     setView("workspace");
     void sendText(
-      `I selected ${company}. Begin the Stage 2 disclosure audit. Save the snapshot, disclosure channels, baselines, methodology gaps, operations news, and reconciliation.`,
+      `I selected ${company}. Call save_discovery_cards first with 6 to 8 likely-material issues from uploaded filings or what you already know. Never fewer than 6. Then STOP. Do not run the full 2A-2G audit this turn.`,
     );
   }
 
@@ -183,8 +193,6 @@ export function EngagementApp({
       `I locked pricing scope on: ${issues.join(", ")}. Walk Stage 6 methodology (five types, eight anatomy components, then a build mode) and save_methodology.`,
     );
   }
-
-  const busy = status === "submitted" || status === "streaming";
 
   async function sendText(text: string) {
     if (!text.trim() || busy) return;
@@ -266,7 +274,11 @@ export function EngagementApp({
 
         <div className="border-b border-[var(--line)] bg-white/70 px-4 py-3">
           <p className="text-[10px] uppercase tracking-[0.16em] text-taupe">Now</p>
-          <p className="mt-1 text-[13px] leading-6 text-forest">{nextAction(engagement)}</p>
+          <p className="mt-1 text-[13px] leading-6 text-forest">
+            {busy
+              ? "Extracting findings now. Review findings cards appear as soon as they are saved, usually in about 15 seconds. You do not need to wait for the chat to finish."
+              : nextAction(engagement)}
+          </p>
         </div>
 
         <div className="flex min-h-0 flex-1">
@@ -288,14 +300,15 @@ export function EngagementApp({
                         />
                       )
                     ) : null}
-                    {engagement.stage === 2 ? <ProfileView engagement={engagement} /> : null}
                     {engagement.stage >= 2 || engagement.artifacts.discoveryCards?.length ? (
                       <HypothesisCards
                         engagement={engagement}
+                        busy={busy}
                         onSelect={selectIssue}
                         onDecide={(issue, reaction) => void decideFinding(issue, reaction)}
                       />
                     ) : null}
+                    {engagement.stage === 2 ? <ProfileView engagement={engagement} /> : null}
                     {engagement.stage >= 3 && engagement.stage <= 4 ? (
                       <>
                         <ScoringPanel

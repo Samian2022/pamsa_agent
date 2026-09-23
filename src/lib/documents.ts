@@ -9,6 +9,8 @@ export const MAX_DOCUMENT_BYTES = 4 * 1024 * 1024;
 export const MAX_DOCUMENTS_PER_ENGAGEMENT = 12;
 export const EXTRACT_CHAR_CAP = 180_000;
 export const EXCERPT_CHAR_CAP = 1_800;
+export const PROMPT_DOC_CHAR_CAP = 8_000;
+export const PROMPT_DOC_MAX_FILES = 2;
 
 const DATA_ROOT = path.join(process.cwd(), ".data");
 
@@ -228,6 +230,26 @@ export async function readOriginalDocument(engagementId: string, doc: UploadedDo
 export async function readExtractedText(engagementId: string, documentId: string) {
   const buffer = await readBytes(blobExtractPath(engagementId, documentId));
   return buffer ? buffer.toString("utf8") : "";
+}
+
+export async function loadDocumentTextForPrompt(
+  engagementId: string,
+  documents: UploadedDocument[],
+) {
+  const recent = [...documents]
+    .filter((item) => item.extractStatus === "ok")
+    .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
+    .slice(0, PROMPT_DOC_MAX_FILES);
+
+  const blocks: string[] = [];
+  for (const doc of recent) {
+    const text = (await readExtractedText(engagementId, doc.id)) || doc.excerpt || "";
+    if (!text) continue;
+    const slice = text.slice(0, PROMPT_DOC_CHAR_CAP);
+    const truncated = text.length > PROMPT_DOC_CHAR_CAP ? "\n[truncated. Call read_uploaded_document only if you need a later page.]" : "";
+    blocks.push(`### ${doc.name} (id: ${doc.id})\n${slice}${truncated}`);
+  }
+  return blocks.join("\n\n");
 }
 
 export async function deleteUploadedDocument(engagementId: string, documentId: string) {

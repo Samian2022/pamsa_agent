@@ -9,7 +9,7 @@ const ACCEPT = ".pdf,.txt,.md,.csv,.json,.html,.htm,.xlsx";
 
 export function documentReviewPrompt(names: string[]) {
   const files = names.join(", ");
-  return `I uploaded ${files}. Read with read_uploaded_document. Save at most 6 findings as discovery cards (merge with existing) and log_discovery with reaction pending. In chat give a short numbered list only (issue, one sentence of evidence, filename). Then STOP. I will press This is material, Not material, or Need more evidence on each card. Do not dump a long memo.`;
+  return `I uploaded ${files}. Filing text is already in context. Call save_discovery_cards now with 6 to 8 findings, never fewer than 6 distinct issues. Then a short numbered list (issue, one sentence, filename). Then STOP. Do not search, fetch URLs, or write a memo.`;
 }
 
 function statusLabel(doc: UploadedDocument) {
@@ -93,7 +93,7 @@ export function DocumentLibrary({
         </p>
         <ol className="mt-3 list-decimal space-y-1 pl-5 text-[13px] leading-6 text-ink-soft">
           <li>You upload. PAMSA extracts the text.</li>
-          <li>The agent reads it and saves up to 6 findings as cards.</li>
+          <li>The agent saves at least 6 findings as cards. You do not wait for a long memo.</li>
           <li>You press This is material, Not material, or Need more evidence on each card.</li>
           <li>Accepted items go into your Discovery log and become the DMA. Ask for another batch when you are ready.</li>
         </ol>

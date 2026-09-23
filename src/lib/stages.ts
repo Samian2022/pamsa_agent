@@ -211,6 +211,11 @@ export function nextAction(engagement: Engagement): string {
     return "Fill the brief below or reply in chat with sector, geography, scale, and any constraints. The agent will rank candidates.";
   }
   if (engagement.stage === 2) {
+    if (!engagement.artifacts.discoveryCards?.length) {
+      return company
+        ? `Upload a filing or ask the agent to extract findings for ${company}. Cards should appear under Review findings in about 15 seconds.`
+        : "A company should be locked before the audit. Select one from Candidates or name it in chat.";
+    }
     return company
       ? `Work through the ${company} disclosure audit in chat. Confirm the snapshot when the layers look right.`
       : "A company should be locked before the audit. Select one from Candidates or name it in chat.";

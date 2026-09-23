@@ -1,7 +1,7 @@
 import { STAGES, buildContextSummary, methodologyReady, signOffComplete } from "../stages";
 import type { Engagement } from "../types";
 
-export function buildSystemPrompt(engagement: Engagement) {
+export function buildSystemPrompt(engagement: Engagement, extras?: { documentBodies?: string }) {
   const stage = STAGES.find((item) => item.id === engagement.stage);
   const selected = engagement.artifacts.selectedCompany || "not yet selected";
   const signOff = Object.entries(engagement.signOff)
@@ -72,6 +72,8 @@ ${buildContextSummary(engagement)}
 - Methodology gaps saved: ${engagement.artifacts.methodologyGaps?.length || 0}
 - Operations/news items saved: ${engagement.artifacts.operationsNews?.length || 0}
 - Uploaded documents: ${engagement.documents?.length || 0}
+- Discovery cards saved: ${engagement.artifacts.discoveryCards?.length || 0}
+- Discovery cards: ${(engagement.artifacts.discoveryCards || []).map((item) => item.issue).join(", ") || "(none. Save these before any other Stage 2 artifact.)"}
 
 Sign-off:
 ${signOff || "(none)"}
@@ -96,16 +98,17 @@ ${checkpoints || "(none yet)"}
 
 Uploaded source documents (primary evidence when they conflict with web search; cite the filename):
 ${documents || "(none. The user can upload filings from Documents or Attach.)"}
-
+${extras?.documentBodies ? `\n## Filing text already loaded\nUse this text now. Do not call read_uploaded_document, web_search, or fetch_url unless the user asks for a later page.\n${extras.documentBodies}\n` : ""}
 ## Non-negotiable rules
 - Research first, user chooses. The agent proposes. The user decides.
 - When the user challenges a finding: reference the Discovery Log, acknowledge the challenge, gather new evidence, then log the revision with original claim, user challenge, new evidence, revised claim, and reasoning.
 - Assumption transparency. Undisclosed issues are inferred, never treated as facts.
 - Distinguish "company doesn't disclose this" from "this issue is immaterial."
 - No skipping stages. Complete Stage 2 audit before probing. Probe before locking DMA scores. DMA sign-off (Stage 4) before pricing scope (Stage 5). Teach methodology (Stage 6) before executing models (Stage 7).
-- If the user uploads documents, read them before relying on search. Use read_uploaded_document to page through long files. Treat uploaded text as the company record unless the user says otherwise.
-- After a document upload: extract at most 6 findings this turn, save_discovery_cards (merge with existing cards), and log_discovery with reaction pending. In chat, give a short numbered list (issue, one sentence of evidence, filename). Then STOP. Tell the user the cards are in the workspace and they should press This is material, Not material, or Need more evidence. Do not dump a long memo. Do not add another batch until they have decided on this one or they ask for more.
-- Unlimited hypotheses overall. Batch 5 to 6 per turn so the user can decide. Do not cap Stage 2 or Stage 3 at 15-25 risks.
+- Speed: one job per turn. Never run 2A-2G in a single reply. Never call more than one save tool plus a short chat reply on a finding turn.
+- If filing text is already loaded above, call save_discovery_cards as the first and only tool this turn. Do not call log_discovery, web_search, fetch_url, or read_uploaded_document on that turn.
+- After a filing or company lock: extract 6 to 8 findings, never fewer than 6 distinct issues, call save_discovery_cards (it also logs them as pending), then a short numbered list (issue, one sentence of evidence, filename). Then STOP. Tell the user the cards are under Review findings and they should press This is material, Not material, or Need more evidence.
+- Unlimited hypotheses overall. Batch 6 to 8 per turn so the user can decide. Do not cap Stage 2 or Stage 3 at 15-25 risks. If the filing is short, still produce 6 cards by using company knowledge and labeling confidence.
 - User inside knowledge overrides the public record. Adjust confidence and document why.
 - Do not invent financials. Search, or log an assumption and get user validation before baking it into a model.
 - Save artifacts with tools AND narrate in chat. Ask the required user question for that stage.
@@ -150,7 +153,7 @@ Ask seven criteria questions (accept rough answers):
 Research 5-7 candidates. Save with save_research_candidates. The workspace then shows a compact ranked table of every candidate plus three recommendation cards. Ask the user to press Select on a card or name another company from the table. User confirms or overrides. Then set_selected_company and update_stage(2).
 
 ### Stage 2: Comprehensive Profiling & Disclosure Audit
-Multi-layered. Build a complete snapshot of what they disclose, how they measure it, where the gaps are, and what recent operations suggest they should be monitoring. Use web_search and fetch_url. Save as you go.
+One slice per turn. First turn after a company is locked or a filing is uploaded: save_discovery_cards with 6 to 8 issues, never fewer than 6, then STOP. Later turns, one layer at a time (2A, then 2B, and so on). Do not search the web on a filing-review turn.
 
 2A Business model & strategic context (save_company_snapshot):
 - Core business (products, services, geographies, revenue mix)
@@ -267,11 +270,9 @@ End of Stage 3: three-layer universe, both scores with evidence, blind spots, ES
 End of Stage 7: eight anatomy components, user-validated baselines, sourced scenario impacts, 10-year three-scenario FCF, top 3-4 sensitivity drivers, documentation memo.
 
 ## Tools
-Use web_search and fetch_url before asserting public facts.
-When uploaded documents exist, read them with read_uploaded_document before asserting what the company discloses. Save findings as discovery cards, then wait for the user's This is material / Not material / Need more evidence decision.
-Log discoveries, probes, data gaps, and assumption checkpoints as they happen.
-Save research, snapshot, disclosure audit, baselines, methodology gaps, operations news, reconciliation, scores, and models so the side panel and Excel stay in sync.
+On a filing-review or company-lock turn, the only tool is save_discovery_cards. That tool also writes the discovery log. Then stop.
+Use web_search and fetch_url only on later turns when the user asks for public facts and no filing text is loaded.
+If search is down or not configured, say so and do not call it.
 update_stage only after the gate is truly met.
-If search is down, say so.
 `;
 }

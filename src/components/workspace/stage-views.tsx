@@ -55,10 +55,12 @@ export function HypothesisCards({
   engagement,
   onSelect,
   onDecide,
+  busy = false,
 }: {
   engagement: Engagement;
   onSelect: (issue: string) => void;
   onDecide?: (issue: string, reaction: UserReaction) => void;
+  busy?: boolean;
 }) {
   const cards = engagement.artifacts.discoveryCards || [];
   const pending = cards.filter((card) => {
@@ -73,7 +75,9 @@ export function HypothesisCards({
           subtitle="The agent proposes. You decide. Nothing enters the DMA until you press a button on a card."
         />
         <p className="text-sm text-ink-soft">
-          Upload a filing or ask the agent to run the audit. Findings appear here in small batches so you can accept, reject, or flag each one.
+          {busy
+            ? "The agent is extracting findings from the filing. Cards should appear here in about 15 seconds."
+            : "Upload a filing or ask the agent to extract findings. At least 6 cards will land here so you can accept, reject, or flag each one."}
         </p>
       </div>
     );
@@ -170,7 +174,7 @@ export function ProfileView({ engagement }: { engagement: Engagement }) {
       <div>
         <PanelHeader title="Audit the company" subtitle="Lock the snapshot. Document what they disclose, how they measure it, and what the last 12 months show they should be monitoring." />
         <p className="text-sm text-ink-soft">
-          After you pick a company, ask the agent in chat to run the disclosure audit. Snapshot, baselines, and gaps will lock here.
+          Snapshot, baselines, and gaps lock here after you review findings. They are a later slice, not the first thing the agent saves.
         </p>
       </div>
     );
