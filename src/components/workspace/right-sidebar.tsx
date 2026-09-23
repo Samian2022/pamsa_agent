@@ -9,6 +9,7 @@ export function RightSidebar({
   selectedIssue,
   open,
   onClose,
+  onSelect,
   onConfirm,
   onChallenge,
   onFlag,
@@ -17,6 +18,7 @@ export function RightSidebar({
   selectedIssue: string | null;
   open: boolean;
   onClose: () => void;
+  onSelect: (issue: string) => void;
   onConfirm: (issue: string, note: string) => void;
   onChallenge: (issue: string, note: string) => void;
   onFlag: (issue: string, note: string) => void;
@@ -61,6 +63,32 @@ export function RightSidebar({
       <div className="scroll-thin min-h-0 flex-1 space-y-4 overflow-y-auto p-4 text-[13px] leading-5">
         {!selectedIssue ? (
           <>
+            {(engagement.artifacts.discoveryCards || []).length ? (
+              <section>
+                <h3 className="text-[10px] uppercase tracking-[0.16em] text-taupe">Findings to decide</h3>
+                <ul className="mt-2 space-y-2">
+                  {(engagement.artifacts.discoveryCards || []).map((item) => {
+                    const reaction = engagement.discoveryLog.find((entry) => entry.issue === item.issue)?.reaction;
+                    const pending = !reaction || reaction === "pending";
+                    return (
+                      <li key={item.issue}>
+                        <button
+                          type="button"
+                          className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-left text-[12px] text-forest"
+                          onClick={() => onSelect(item.issue)}
+                        >
+                          {item.issue}
+                          <span className="mt-1 block text-[11px] uppercase tracking-wide text-rust">
+                            {pending ? "Waiting for your call" : reaction}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : (
+              <>
             <section>
               <h3 className="text-[10px] uppercase tracking-[0.16em] text-taupe">Company snapshot</h3>
               <p className="mt-2 text-ink-soft">
@@ -76,6 +104,8 @@ export function RightSidebar({
                 {snapshot?.regulatoryExposure || "Peer benchmarks and upcoming rules appear here after profiling."}
               </p>
             </section>
+              </>
+            )}
           </>
         ) : (
           <section className="animate-slide-right space-y-3 rounded-xl border border-sage/25 bg-white p-3">

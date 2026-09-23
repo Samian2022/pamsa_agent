@@ -2,7 +2,7 @@
 
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { composerPlaceholder, nextAction, signOffComplete, methodologyReady } from "@/lib/stages";
 import type { Engagement, IssueScore, MethodologyProgress, PricingScope, SessionUser, SignOffState, UserReaction } from "@/lib/types";
@@ -73,6 +73,7 @@ export function EngagementApp({
   const [signOffOpen, setSignOffOpen] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
+  const seenCardCount = useRef(initial.artifacts.discoveryCards?.length || 0);
 
   const transport = useMemo(
     () =>
@@ -107,6 +108,28 @@ export function EngagementApp({
       setSignOffOpen(true);
     }
   }, [engagement.stage]);
+
+  useEffect(() => {
+    const n = engagement.artifacts.discoveryCards?.length || 0;
+    if (n > seenCardCount.current) {
+      seenCardCount.current = n;
+      setView("workspace");
+      window.requestAnimationFrame(() => {
+        document.getElementById("review-findings")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    } else {
+      seenCardCount.current = n;
+    }
+    if (selectedIssue) return;
+    const firstPending = (engagement.artifacts.discoveryCards || []).find((card) => {
+      const reaction = engagement.discoveryLog.find((item) => item.issue === card.issue)?.reaction;
+      return !reaction || reaction === "pending";
+    });
+    if (firstPending) {
+      setSelectedIssue(firstPending.issue);
+      setRightOpen(true);
+    }
+  }, [engagement.artifacts.discoveryCards, engagement.discoveryLog, selectedIssue]);
 
   async function refresh() {
     const response = await fetch(`/api/engagements/${initial.id}`);
@@ -301,14 +324,21 @@ export function EngagementApp({
                       )
                     ) : null}
                     {engagement.stage >= 2 || engagement.artifacts.discoveryCards?.length ? (
-                      <HypothesisCards
-                        engagement={engagement}
-                        busy={busy}
-                        onSelect={selectIssue}
-                        onDecide={(issue, reaction) => void decideFinding(issue, reaction)}
-                      />
+                      <div id="review-findings">
+                        <HypothesisCards
+                          engagement={engagement}
+                          busy={busy}
+                          onSelect={selectIssue}
+                          onDecide={(issue, reaction) => void decideFinding(issue, reaction)}
+                        />
+                      </div>
                     ) : null}
-                    {engagement.stage === 2 ? <ProfileView engagement={engagement} /> : null}
+                    {engagement.stage === 2 &&
+                    (engagement.artifacts.snapshot ||
+                      engagement.artifacts.disclosureAudit?.length ||
+                      engagement.artifacts.baselineMetrics?.length) ? (
+                      <ProfileView engagement={engagement} />
+                    ) : null}
                     {engagement.stage >= 3 && engagement.stage <= 4 ? (
                       <>
                         <ScoringPanel
@@ -342,20 +372,30 @@ export function EngagementApp({
                   />
                 ) : null}
 
-                {view === "discovery" ? <TimelineLog engagement={engagement} mode="discovery" /> : null}
+                {view === "discovery" ? (
+                  <div className="space-y-8">
+                    {engagement.artifacts.discoveryCards?.length ? (
+                      <HypothesisCards
+                        engagement={engagement}
+                        busy={busy}
+                        onSelect={selectIssue}
+                        onDecide={(issue, reaction) => void decideFinding(issue, reaction)}
+                      />
+                    ) : null}
+                    <TimelineLog engagement={engagement} mode="discovery" />
+                  </div>
+                ) : null}
                 {view === "probing" ? <TimelineLog engagement={engagement} mode="probing" /> : null}
                 {view === "assumptions" ? <TimelineLog engagement={engagement} mode="assumptions" /> : null}
 
-                {view === "workspace" && engagement.stage <= 1 && !engagement.artifacts.discoveryCards?.length ? (
+                {view === "workspace" ? (
                   <LastAgentNote
                     messages={messages}
                     onOpenChat={() => setView("chat")}
                   />
                 ) : null}
 
-                {(view === "chat" ||
-                  (view === "workspace" &&
-                    (engagement.stage > 1 || Boolean(engagement.artifacts.discoveryCards?.length)))) && (
+                {view === "chat" && (
                   <div className="space-y-4">
                     {messages.map((message) => (
                       <article
@@ -474,6 +514,7 @@ export function EngagementApp({
             selectedIssue={selectedIssue}
             open={rightOpen || engagement.stage > 1}
             onClose={() => setRightOpen(false)}
+            onSelect={selectIssue}
             onConfirm={(issue, note) => void decideFinding(issue, "accepted", note)}
             onChallenge={(issue, note) => void decideFinding(issue, "disputed", note)}
             onFlag={(issue, note) => void decideFinding(issue, "deeper-investigation", note)}
