@@ -42,7 +42,7 @@ export function RightSidebar({
     if (!selectedIssue) return "Open a finding card. The agent proposes. You decide.";
     if (discovery?.reaction === "accepted") return "You marked this as material. It stays in your DMA unless you change your call.";
     if (discovery?.reaction === "disputed") return "You marked this as not material. The agent should bring new evidence before you rescore.";
-    if (discovery?.reaction === "deeper-investigation") return "You asked for more evidence. Wait for the next batch, then decide.";
+    if (discovery?.reaction === "deeper-investigation") return "You asked for more evidence. Extra facts land on this card, then you decide again.";
     return "Let's test this finding together. Do you agree this is material?";
   }, [discovery, selectedIssue]);
 

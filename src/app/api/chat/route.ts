@@ -1,5 +1,5 @@
 import { convertToModelMessages, pruneMessages, stepCountIs, streamText, type UIMessage } from "ai";
-import { extractFindingsResponse } from "@/lib/agent/discovery";
+import { extractFindingsResponse, extractProbeResponse } from "@/lib/agent/discovery";
 import { extractResearchResponse } from "@/lib/agent/research";
 import { createAgentTools } from "@/lib/agent/tools";
 import { buildSystemPrompt } from "@/lib/agent/prompt";
@@ -44,10 +44,12 @@ export async function POST(request: Request) {
 
   const messages = body.messages || [];
   const userText = lastUserText(messages);
-  const decisionTurn = /this is material|do not treat|more evidence|log_discovery|log_probe/i.test(userText);
+  const probeTurn = /need more evidence|more evidence on/i.test(userText);
+  const decisionTurn = /this is material|do not treat|log_discovery|log_probe/i.test(userText);
   const cardCount = engagement.artifacts.discoveryCards?.length || 0;
   const findingExtract =
     !decisionTurn &&
+    !probeTurn &&
     (/uploaded|save_discovery_cards|discovery cards|read_uploaded_document|ask agent to review/i.test(userText) ||
       (engagement.stage >= 2 && cardCount < 6));
   const candidateCount = engagement.artifacts.researchCandidates?.length || 0;
@@ -57,6 +59,14 @@ export async function POST(request: Request) {
     !engagement.artifacts.selectedCompany &&
     candidateCount < 5 &&
     /research|candidates|criteria|sector|energy|see the list|where is the result|show the list/i.test(userText);
+  if (probeTurn) {
+    return extractProbeResponse({
+      engagement,
+      engagementId,
+      messages,
+      userText,
+    });
+  }
   const tools = createAgentTools(engagementId);
   const documentBodies = await loadDocumentTextForPrompt(engagementId, engagement.documents || []);
   if (findingExtract) {

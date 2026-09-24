@@ -245,6 +245,13 @@ export function EngagementApp({
     setRightOpen(true);
     const next = await patchEngagement({ discoveryReaction: { issue, reaction, notes: note } });
     if (!next) return;
+    if (reaction === "deeper-investigation") {
+      if (busy) stop();
+      void sendMessage({
+        text: `I need more evidence on "${issue}". ${note} Search public facts for this one issue only. Update the card, then STOP.`.trim(),
+      });
+      return;
+    }
     if (pendingFindingCount(next) > 0) return;
     const accepted = next.discoveryLog
       .filter((item) => item.reaction === "accepted")
@@ -383,7 +390,9 @@ export function EngagementApp({
             {busy
               ? engagement.stage <= 1
                 ? "Researching candidates now. A ranked table should appear in about 20 seconds."
-                : "Extracting findings now. Review findings cards appear as soon as they are saved, usually in about 15 seconds. You do not need to wait for the chat to finish."
+                : engagement.discoveryLog.some((item) => item.reaction === "deeper-investigation")
+                  ? "Gathering extra evidence for the flagged card now. It should update in about 15 seconds."
+                  : "Extracting findings now. Review findings cards appear as soon as they are saved, usually in about 15 seconds. You do not need to wait for the chat to finish."
               : nextAction(engagement)}
           </p>
         </div>

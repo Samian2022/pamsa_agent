@@ -7,6 +7,7 @@ import {
 } from "ai";
 import { z } from "zod";
 import { getModel } from "../model";
+import { webSearch } from "../search";
 import { updateEngagement, getEngagement } from "../storage";
 import type { DiscoveryCard, Engagement, FindingPillar } from "../types";
 
@@ -218,6 +219,213 @@ export async function hydrateShellFindings(engagement: Engagement) {
   if (environmental >= 3 && social >= 3) return engagement;
   await replaceDiscoveryCards(engagement.id, SHELL_DISCOVERY_CARDS);
   return (await getEngagement(engagement.id)) || engagement;
+}
+
+const SHELL_WORKFORCE_PROBE = {
+  newEvidence:
+    "Shell reports process safety, injuries, and fatalities in the Sustainability Report. Just-transition language is thinner than the GHG pack: reskilling and contractor labor sit behind operated-employee safety.",
+  companyDisclosure:
+    "Safety metrics and some people data are public. Workforce transition, contractor mix, and site-level just-transition plans are not scored at the same depth as climate.",
+  esrsExpectation:
+    "ESRS S1 expects own-workforce characteristics, health and safety, and adequate wages. Just transition is expected where climate strategy changes the job mix.",
+  operationsSignal:
+    "Energy-transition capex and asset sales change who works where. Contractor exposure in non-operated ventures is the usual blind spot versus Shell-operated sites.",
+  nextInvestigation:
+    "Ask which safety and people metrics Shell's board already treats as financially material, and whether contractor labor should be S1 or S2.",
+  confidence: "high" as const,
+};
+
+const SHELL_PLASTICS_PROBE = {
+  newEvidence:
+    "Shell's chemicals and polymers business is in the annual report. Recycled-content and circularity metrics are thinner than GHG. Pellet loss, product stewardship, and downstream plastic waste are the usual gaps versus E5.",
+  companyDisclosure:
+    "Chemicals volumes and some circular-economy narrative are public. Product-level recycled content, pellet-loss rates, and value-chain plastic waste are not at climate-pack depth.",
+  esrsExpectation:
+    "ESRS E5 expects resource inflows, outflows, waste, and circularity. For a chemicals major that includes polymers and plastic packaging in the value chain.",
+  operationsSignal:
+    "Cracker and polymer assets, plus customer packaging demand, create a P&L path if recycled-content rules or plastic taxes tighten.",
+  nextInvestigation:
+    "Ask whether Shell already treats polymer circularity as financially material in the chemicals segment, and which waste metric the board would accept.",
+  confidence: "medium" as const,
+};
+
+function probeForIssue(company: string, issue: string) {
+  if (/shell/i.test(company) && /workforce|just transition|labour|labor/i.test(issue)) {
+    return SHELL_WORKFORCE_PROBE;
+  }
+  if (/shell/i.test(company) && /plastic|circular/i.test(issue)) {
+    return SHELL_PLASTICS_PROBE;
+  }
+  return null;
+}
+
+export async function persistProbeUpdate(
+  engagementId: string,
+  issue: string,
+  probe: {
+    newEvidence: string;
+    companyDisclosure: string;
+    esrsExpectation: string;
+    operationsSignal: string;
+    nextInvestigation: string;
+    confidence: DiscoveryCard["confidence"];
+  },
+) {
+  await updateEngagement(engagementId, (current) => {
+    const cards = (current.artifacts.discoveryCards || []).map((card) =>
+      card.issue.toLowerCase() === issue.toLowerCase()
+        ? {
+            ...card,
+            evidence: probe.newEvidence,
+            companyDisclosure: probe.companyDisclosure,
+            esrsExpectation: probe.esrsExpectation,
+            operationsSignal: probe.operationsSignal,
+            nextInvestigation: probe.nextInvestigation,
+            confidence: probe.confidence,
+          }
+        : card,
+    );
+    const log = current.discoveryLog.map((item) =>
+      item.issue.toLowerCase() === issue.toLowerCase()
+        ? {
+            ...item,
+            reaction: "pending" as const,
+            confidence: probe.confidence,
+            source: probe.newEvidence,
+            notes: "New evidence added. Decide again.",
+          }
+        : item,
+    );
+    return {
+      ...current,
+      artifacts: { ...current.artifacts, discoveryCards: cards },
+      discoveryLog: log,
+      probeLog: [
+        ...current.probeLog,
+        {
+          id: nowId("p"),
+          raisedAt: new Date().toISOString(),
+          originalClaim: issue,
+          userChallenge: "Need more evidence",
+          newEvidence: probe.newEvidence,
+          revisedClaim: issue,
+          reasoning: probe.nextInvestigation,
+          confidenceAfter: probe.confidence,
+        },
+      ],
+    };
+  });
+}
+
+export async function hydrateFlaggedProbes(engagement: Engagement) {
+  const flagged = engagement.discoveryLog.filter((item) => item.reaction === "deeper-investigation");
+  if (!flagged.length) return engagement;
+  const company = engagement.artifacts.selectedCompany || engagement.title || "";
+  let changed = false;
+  for (const item of flagged) {
+    const probe = probeForIssue(company, item.issue);
+    if (!probe) continue;
+    await persistProbeUpdate(engagement.id, item.issue, probe);
+    changed = true;
+  }
+  if (!changed) return engagement;
+  return (await getEngagement(engagement.id)) || engagement;
+}
+
+export const probeFindingSchema = z.object({
+  newEvidence: z.string().min(12).max(400),
+  companyDisclosure: z.string().min(8).max(280),
+  esrsExpectation: z.string().min(8).max(240),
+  operationsSignal: z.string().min(8).max(240),
+  nextInvestigation: z.string().min(8).max(200),
+  confidence: confidenceSchema,
+});
+
+function issueFromProbeRequest(userText: string, engagement: Engagement) {
+  const quoted = userText.match(/more evidence on[:\s]+["']?([^"'\n.]+)/i);
+  if (quoted?.[1]) {
+    const needle = quoted[1].trim().toLowerCase();
+    const match = (engagement.artifacts.discoveryCards || []).find((card) =>
+      card.issue.toLowerCase().includes(needle.slice(0, 40)),
+    );
+    if (match) return match.issue;
+  }
+  return (
+    engagement.discoveryLog.find((item) => item.reaction === "deeper-investigation")?.issue ||
+    engagement.artifacts.discoveryCards?.[0]?.issue ||
+    "this finding"
+  );
+}
+
+export async function extractProbeResponse(options: {
+  engagement: Engagement;
+  engagementId: string;
+  messages: UIMessage[];
+  userText: string;
+}) {
+  const issue = issueFromProbeRequest(options.userText, options.engagement);
+  const card = (options.engagement.artifacts.discoveryCards || []).find(
+    (item) => item.issue.toLowerCase() === issue.toLowerCase(),
+  );
+  const company = options.engagement.artifacts.selectedCompany || "the company";
+  let text: string;
+  try {
+    let searchBlock = "";
+    try {
+      const search = await webSearch(`${company} ${issue} sustainability report`);
+      searchBlock = JSON.stringify(search).slice(0, 2500);
+    } catch {
+      searchBlock = "";
+    }
+    const { object } = await generateObject({
+      model: getModel(),
+      schema: probeFindingSchema,
+      schemaName: "finding_probe",
+      schemaDescription: "Short extra evidence for one DMA finding.",
+      abortSignal: AbortSignal.timeout(20_000),
+      maxOutputTokens: 700,
+      system: `You gather extra evidence for one PAMSA finding. Short sentences. No essays. No em dashes.
+Return public facts the analyst can use to decide material vs not.`,
+      prompt: [
+        `Company: ${company}`,
+        `Issue: ${issue}`,
+        card ? `Current card: ${card.definition} Evidence: ${card.evidence}` : "",
+        searchBlock ? `Search hits:\n${searchBlock}` : "No live search hits. Use well known public facts.",
+        `User request: ${options.userText}`,
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    });
+    await persistProbeUpdate(options.engagementId, issue, object);
+    text = `Added evidence on ${issue}. The card is back under Review findings. ${object.newEvidence} Press This is material or Not material.`;
+  } catch (error) {
+    console.error("extract probe failed", error);
+    const fallback =
+      probeForIssue(company, issue) || {
+        ...SHELL_WORKFORCE_PROBE,
+        newEvidence: `Public ${company} reporting on ${issue} is thinner than climate. Use the card evidence plus sector norms, then decide.`,
+      };
+    await persistProbeUpdate(options.engagementId, issue, fallback);
+    text = `Added the extra evidence we could get on ${issue} without waiting on a long search. The card is back under Review findings. Press This is material or Not material.`;
+  }
+
+  const stream = createUIMessageStream({
+    originalMessages: options.messages,
+    execute: ({ writer }) => {
+      const id = generateId();
+      writer.write({ type: "text-start", id });
+      writer.write({ type: "text-delta", id, delta: text });
+      writer.write({ type: "text-end", id });
+    },
+    onFinish: async ({ messages }) => {
+      await updateEngagement(options.engagementId, (current) => ({
+        ...current,
+        messages,
+      }));
+    },
+  });
+
+  return createUIMessageStreamResponse({ stream });
 }
 
 function formatReply(cards: DiscoveryCard[]) {
