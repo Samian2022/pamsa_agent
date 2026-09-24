@@ -18,7 +18,7 @@ It does **not** dump a finished DMA on the first prompt. The agent researches, p
 
 1. Copy `.env.example` to `.env.local`
 2. Set `ACCESS_CODE`, `AUTH_SECRET`, and at least one of `AI_GATEWAY_API_KEY`, `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY`
-3. Set `TAVILY_API_KEY` if you want live company search (strongly recommended)
+3. Optional: set `TAVILY_API_KEY` for stronger company/news search. The agent still searches the public web without it.
 4. Install and start:
 
 ```bash
@@ -46,7 +46,7 @@ Recommended production env:
 | `AUTH_SECRET` | Signs session cookies (`openssl rand -base64 32`) |
 | `TEAM_ALLOWLIST` | Required. Named people who can sign in (`Full Name <email>; ...`). Empty means nobody gets in. |
 | `AI_GATEWAY_API_KEY` or provider key | The model |
-| `TAVILY_API_KEY` | Company / peer / news research |
+| `TAVILY_API_KEY` | Optional stronger company / peer / news research |
 | `BLOB_READ_WRITE_TOKEN` | Persistent shared storage |
 
 The chat route is set to 60 seconds so it deploys on Vercel Hobby. Longer research runs need Fluid Compute or a Pro plan. If Vercel says the GitHub repo is not found, the repo is private: either make it public, or in GitHub Settings > Applications > Vercel, grant access to `pamsa_agent`.

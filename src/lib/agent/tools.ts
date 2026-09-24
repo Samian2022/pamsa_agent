@@ -39,7 +39,7 @@ export function createAgentTools(engagementId: string) {
   return {
     web_search: tool({
       description:
-        "Search the public web for company filings, sustainability reports, news, peers, and regulation.",
+        "Search the public web for company filings, sustainability reports, news, peers, and regulation. Always available. Call this on Stage 1 before saving candidates.",
       inputSchema: z.object({
         query: z.string().min(3),
       }),
