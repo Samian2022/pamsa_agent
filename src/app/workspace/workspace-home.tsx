@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { STAGES } from "@/lib/stages";
 import { RelativeTime } from "@/components/relative-time";
 import type { SessionUser } from "@/lib/types";
@@ -25,8 +25,20 @@ export function WorkspaceHome({
   initialEngagements: Summary[];
 }) {
   const router = useRouter();
-  const [engagements] = useState(initialEngagements);
+  const [engagements, setEngagements] = useState(initialEngagements);
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/engagements")
+      .then((response) => response.json() as Promise<{ engagements?: Summary[] }>)
+      .then((data) => {
+        if (!cancelled && data.engagements) setEngagements(data.engagements);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function createEngagement() {
     setPending(true);

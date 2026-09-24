@@ -56,11 +56,13 @@ export function LeftSidebar({
   engagement,
   view,
   onView,
+  onJourney,
   collapsed,
 }: {
   engagement: Engagement;
   view: WorkspaceView;
   onView: (view: WorkspaceView) => void;
+  onJourney?: (key: (typeof JOURNEY_STAGES)[number]["key"]) => void;
   collapsed?: boolean;
 }) {
   const router = useRouter();
@@ -102,7 +104,7 @@ export function LeftSidebar({
           <button
             key={stage.key}
             type="button"
-            onClick={() => onView("workspace")}
+            onClick={() => (onJourney ? onJourney(stage.key) : onView("workspace"))}
             className={`flex h-6 w-6 items-center justify-center rounded-full ${
               stage.done(engagement.stage)
                 ? "bg-sage text-white"
@@ -175,7 +177,7 @@ export function LeftSidebar({
               <button
                 key={stage.key}
                 type="button"
-                onClick={() => onView("workspace")}
+                onClick={() => (onJourney ? onJourney(stage.key) : onView("workspace"))}
                 className="flex w-full items-start gap-2 rounded-lg text-left hover:bg-white/5"
               >
                 <span

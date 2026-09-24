@@ -4,7 +4,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Markdown from "react-markdown";
-import { composerPlaceholder, nextAction, signOffComplete, methodologyReady } from "@/lib/stages";
+import { composerPlaceholder, JOURNEY_STAGES, nextAction, signOffComplete, methodologyReady } from "@/lib/stages";
 import type { Engagement, IssueScore, MethodologyProgress, PricingScope, SessionUser, SignOffState, UserReaction } from "@/lib/types";
 import { LeftSidebar } from "@/components/workspace/left-sidebar";
 import type { WorkspaceView } from "@/components/workspace/views";
@@ -14,6 +14,7 @@ import { ComposerAttach, DocumentLibrary, documentReviewPrompt } from "@/compone
 import { DiscoveryBrief } from "@/components/workspace/discovery-brief";
 import {
   HypothesisCards,
+  LockedPricing,
   MetricsGrid,
   ModelBuilder,
   ProfileView,
@@ -58,6 +59,15 @@ function LastAgentNote({
   );
 }
 
+function firstSelectedIssue(engagement: Engagement) {
+  const cards = engagement.artifacts.discoveryCards || [];
+  const firstPending = cards.find((card) => {
+    const reaction = engagement.discoveryLog.find((item) => item.issue === card.issue)?.reaction;
+    return !reaction || reaction === "pending";
+  });
+  return firstPending?.issue || cards[0]?.issue || null;
+}
+
 export function EngagementApp({
   initial,
   user,
@@ -68,9 +78,10 @@ export function EngagementApp({
   const [engagement, setEngagement] = useState(initial);
   const [input, setInput] = useState("");
   const [view, setView] = useState<WorkspaceView>("workspace");
-  const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
+  const [selectedIssue, setSelectedIssue] = useState<string | null>(() => firstSelectedIssue(initial));
   const [rightOpen, setRightOpen] = useState(false);
   const [signOffOpen, setSignOffOpen] = useState(false);
+  const [journeyFocus, setJourneyFocus] = useState<"audit" | "dma" | "pricing" | null>(null);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const seenCardCount = useRef(initial.artifacts.discoveryCards?.length || 0);
@@ -121,13 +132,15 @@ export function EngagementApp({
       seenCardCount.current = n;
     }
     if (selectedIssue) return;
-    const firstPending = (engagement.artifacts.discoveryCards || []).find((card) => {
+    const cards = engagement.artifacts.discoveryCards || [];
+    const firstPending = cards.find((card) => {
       const reaction = engagement.discoveryLog.find((item) => item.issue === card.issue)?.reaction;
       return !reaction || reaction === "pending";
     });
-    if (firstPending) {
-      setSelectedIssue(firstPending.issue);
-      setRightOpen(true);
+    const first = firstPending || cards[0];
+    if (first) {
+      setSelectedIssue(first.issue);
+      if (firstPending) setRightOpen(true);
     }
   }, [engagement.artifacts.discoveryCards, engagement.discoveryLog, selectedIssue]);
 
@@ -244,19 +257,44 @@ export function EngagementApp({
       setSignOffOpen(true);
       return;
     }
+    if (next === "workspace") setJourneyFocus("audit");
     setView(next);
+  }
+
+  function onJourney(key: (typeof JOURNEY_STAGES)[number]["key"]) {
+    if (key === "signoff") {
+      setSignOffOpen(true);
+      return;
+    }
+    setView("workspace");
+    setJourneyFocus(key === "pricing" ? "pricing" : key === "dma" ? "dma" : "audit");
+    const id = key === "dma" ? "dma-scoring" : key === "pricing" ? "pricing-scope" : "review-findings";
+    window.requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   return (
     <div className="flex h-screen overflow-hidden bg-cloud">
       {mobileNav ? (
         <div className="fixed inset-0 z-30 flex md:hidden">
-          <LeftSidebar engagement={engagement} view={view} onView={(next) => { go(next); setMobileNav(false); }} />
+          <LeftSidebar
+            engagement={engagement}
+            view={view}
+            onView={(next) => {
+              go(next);
+              setMobileNav(false);
+            }}
+            onJourney={(key) => {
+              onJourney(key);
+              setMobileNav(false);
+            }}
+          />
           <button type="button" className="flex-1 bg-forest/50" aria-label="Close menu" onClick={() => setMobileNav(false)} />
         </div>
       ) : null}
       <div className="hidden md:flex">
-        <LeftSidebar engagement={engagement} view={view} onView={go} collapsed={navCollapsed} />
+        <LeftSidebar engagement={engagement} view={view} onView={go} onJourney={onJourney} collapsed={navCollapsed} />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -336,14 +374,14 @@ export function EngagementApp({
                       </div>
                     ) : null}
                     {engagement.stage === 2 &&
-                    engagement.artifacts.discoveryCards?.length &&
-                    (engagement.artifacts.snapshot ||
-                      engagement.artifacts.disclosureAudit?.length ||
-                      engagement.artifacts.baselineMetrics?.length) ? (
+                    (engagement.artifacts.selectedCompany || engagement.artifacts.discoveryCards?.length) ? (
                       <ProfileView engagement={engagement} />
                     ) : null}
-                    {engagement.stage >= 3 && engagement.stage <= 4 ? (
-                      <>
+                    {engagement.stage <= 4 &&
+                    (engagement.stage >= 2 ||
+                      engagement.artifacts.selectedCompany ||
+                      engagement.artifacts.discoveryCards?.length) ? (
+                      <div id="dma-scoring">
                         <ScoringPanel
                           engagement={engagement}
                           selected={selectedIssue}
@@ -351,15 +389,21 @@ export function EngagementApp({
                           onScores={onScores}
                         />
                         <MetricsGrid engagement={engagement} />
-                      </>
+                      </div>
                     ) : null}
-                    {engagement.stage === 5 ? (
-                      <ScopePicker engagement={engagement} onScope={(issues) => void lockScope(issues)} />
+                    {engagement.stage >= 5 || journeyFocus === "pricing" ? (
+                      <div id="pricing-scope">
+                        {engagement.stage < 5 ? (
+                          <LockedPricing engagement={engagement} onOpenSignOff={() => setSignOffOpen(true)} />
+                        ) : engagement.stage === 5 ? (
+                          <ScopePicker engagement={engagement} onScope={(issues) => void lockScope(issues)} />
+                        ) : engagement.stage === 6 ? (
+                          <TeachForm engagement={engagement} onMethodology={onMethodology} />
+                        ) : (
+                          <ModelBuilder engagement={engagement} />
+                        )}
+                      </div>
                     ) : null}
-                    {engagement.stage === 6 ? (
-                      <TeachForm engagement={engagement} onMethodology={onMethodology} />
-                    ) : null}
-                    {engagement.stage >= 7 ? <ModelBuilder engagement={engagement} /> : null}
                   </>
                 ) : null}
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FINANCIAL_BANDS, IMPACT_BANDS, SCORE_LABELS, confidencePercent, rationaleMatchesBand } from "@/lib/format";
-import { methodologyReady } from "@/lib/stages";
+import { methodologyReady, SIGN_OFF_ITEMS } from "@/lib/stages";
 import type {
   Engagement,
   IssueScore,
@@ -22,6 +22,35 @@ function PanelHeader({ title, subtitle }: { title: string; subtitle: string }) {
     <div className="mb-4">
       <h2 className="section-kicker text-[16px] md:text-[20px]">{title}</h2>
       <p className="mt-2 text-[13px] leading-6 text-ink-soft">{subtitle}</p>
+    </div>
+  );
+}
+
+export function LockedPricing({
+  engagement,
+  onOpenSignOff,
+}: {
+  engagement: Engagement;
+  onOpenSignOff: () => void;
+}) {
+  const signed = SIGN_OFF_ITEMS.filter((item) => engagement.signOff[item.id]?.agreed).length;
+  return (
+    <div>
+      <PanelHeader
+        title="Pricing Model"
+        subtitle="Teach pricing before any model is locked. DMA sign-off comes first."
+      />
+      <p className="text-sm text-ink-soft">
+        Sign-off is {signed}/{SIGN_OFF_ITEMS.length}. Finish the checklist, then pick 2 to 4 issues with a
+        cost, revenue, capex, or WACC path.
+      </p>
+      <button
+        type="button"
+        onClick={onOpenSignOff}
+        className="btn-primary mt-4 rounded-full px-4 py-2 text-sm"
+      >
+        Open sign-off
+      </button>
     </div>
   );
 }
