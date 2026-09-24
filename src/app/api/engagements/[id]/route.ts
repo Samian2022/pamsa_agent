@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { canEnterStage, methodologyReady, signOffComplete } from "@/lib/stages";
+import { canEnterStage, findingsReadyToScore, methodologyReady, signOffComplete } from "@/lib/stages";
 import { deleteEngagement, getEngagement, updateEngagement } from "@/lib/storage";
 import type { IssueScore, MethodologyProgress, PricingScope, SignOffState, StageId, UserReaction } from "@/lib/types";
 
@@ -39,6 +39,25 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const engagement = await updateEngagement(id, (current) => {
       const nextSignOff = body.signOff ?? current.signOff;
       const nextMethodology = body.methodology ?? current.methodology;
+      const nextLog = body.discoveryReaction
+        ? [
+            ...current.discoveryLog.filter(
+              (item) => item.issue.toLowerCase() !== body.discoveryReaction!.issue.toLowerCase(),
+            ),
+            {
+              id: `d-${Date.now()}`,
+              issue: body.discoveryReaction.issue,
+              raisedAt: new Date().toISOString(),
+              source: current.discoveryLog.find((item) => item.issue === body.discoveryReaction!.issue)?.source || "user review",
+              confidence:
+                current.discoveryLog.find((item) => item.issue === body.discoveryReaction!.issue)?.confidence ||
+                current.artifacts.discoveryCards?.find((item) => item.issue === body.discoveryReaction!.issue)?.confidence ||
+                "medium",
+              reaction: body.discoveryReaction.reaction,
+              notes: body.discoveryReaction.notes,
+            },
+          ]
+        : current.discoveryLog;
       let nextStage = current.stage;
       if (typeof body.stage === "number") {
         if (canEnterStage(body.stage, current.stage, nextSignOff, nextMethodology)) {
@@ -46,6 +65,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         }
       } else if (body.selectedCompany && current.stage === 1) {
         nextStage = 2;
+      } else if (
+        current.stage === 2 &&
+        findingsReadyToScore({ ...current, discoveryLog: nextLog })
+      ) {
+        if (canEnterStage(3, 2, nextSignOff, nextMethodology)) nextStage = 3;
       } else if (body.signOff && current.stage === 4 && signOffComplete(nextSignOff)) {
         if (canEnterStage(5, 4, nextSignOff, nextMethodology)) nextStage = 5;
       } else if (body.methodology && current.stage === 6 && methodologyReady(nextMethodology)) {
@@ -60,25 +84,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         stage: nextStage,
         signOff: nextSignOff,
         methodology: nextMethodology,
-        discoveryLog: body.discoveryReaction
-          ? [
-              ...current.discoveryLog.filter(
-                (item) => item.issue.toLowerCase() !== body.discoveryReaction!.issue.toLowerCase(),
-              ),
-              {
-                id: `d-${Date.now()}`,
-                issue: body.discoveryReaction.issue,
-                raisedAt: new Date().toISOString(),
-                source: current.discoveryLog.find((item) => item.issue === body.discoveryReaction!.issue)?.source || "user review",
-                confidence:
-                  current.discoveryLog.find((item) => item.issue === body.discoveryReaction!.issue)?.confidence ||
-                  current.artifacts.discoveryCards?.find((item) => item.issue === body.discoveryReaction!.issue)?.confidence ||
-                  "medium",
-                reaction: body.discoveryReaction.reaction,
-                notes: body.discoveryReaction.notes,
-              },
-            ]
-          : current.discoveryLog,
+        discoveryLog: nextLog,
         artifacts: {
           ...current.artifacts,
           issueScores: body.issueScores ?? current.artifacts.issueScores,

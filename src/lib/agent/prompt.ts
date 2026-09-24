@@ -197,7 +197,7 @@ For each item: what the company said, what third parties found, and the signal "
 
 2G Data gap inventory (save_data_gaps). Roll up Environmental / Social / Governance into disclosed (ESRS-aligned), disclosed (non-aligned), undisclosed but likely material, undisclosed and unlikely, data quality issues.
 
-Ask what is missing or mischaracterized. Do not update_stage(3) until 2A-2G are saved (or you have logged why a layer is impossible) and the user confirms the snapshot.
+Ask what is missing or mischaracterized. If the user has decided every discovery card and accepted at least one, they have passed Stage 2. Call update_stage(3) if the workspace has not already moved, then save_scoring_framework. Do not wait for a perfect 2A-2G pack if the user has already locked findings.
 
 ### Stage 3: Interactive probing, then DMA construction
 Do NOT lock the matrix until hypotheses are probed.

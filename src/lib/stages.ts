@@ -198,6 +198,19 @@ export function pendingFindingCount(engagement: Engagement) {
   }).length;
 }
 
+export function findingsReadyToScore(engagement: Engagement) {
+  const cards = engagement.artifacts.discoveryCards || [];
+  if (!cards.length) return false;
+  const decided = cards.every((card) => {
+    const reaction = engagement.discoveryLog.find((item) => item.issue === card.issue)?.reaction;
+    return Boolean(reaction) && reaction !== "pending";
+  });
+  const accepted = cards.some(
+    (card) => engagement.discoveryLog.find((item) => item.issue === card.issue)?.reaction === "accepted",
+  );
+  return decided && accepted;
+}
+
 export function nextAction(engagement: Engagement): string {
   const pending = pendingFindingCount(engagement);
   if (pending > 0) {
@@ -215,6 +228,9 @@ export function nextAction(engagement: Engagement): string {
       return company
         ? `Upload a filing or ask the agent to extract findings for ${company}. Cards should appear under Review findings in about 15 seconds.`
         : "A company should be locked before the audit. Select one from Candidates or name it in chat.";
+    }
+    if (findingsReadyToScore(engagement)) {
+      return "Findings are locked. DMA scoring is next. Ask the agent to save the scoring key if it is not on screen yet.";
     }
     return company
       ? `Work through the ${company} disclosure audit in chat. Confirm the snapshot when the layers look right.`

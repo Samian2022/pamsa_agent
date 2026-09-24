@@ -4,7 +4,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Markdown from "react-markdown";
-import { composerPlaceholder, JOURNEY_STAGES, nextAction, signOffComplete, methodologyReady } from "@/lib/stages";
+import { composerPlaceholder, findingsReadyToScore, JOURNEY_STAGES, nextAction, pendingFindingCount, signOffComplete, methodologyReady } from "@/lib/stages";
 import type { Engagement, IssueScore, MethodologyProgress, PricingScope, SessionUser, SignOffState, UserReaction } from "@/lib/types";
 import { LeftSidebar } from "@/components/workspace/left-sidebar";
 import type { WorkspaceView } from "@/components/workspace/views";
@@ -115,6 +115,11 @@ export function EngagementApp({
   }, [busy]);
 
   useEffect(() => {
+    if (engagement.stage !== 2 || !findingsReadyToScore(engagement)) return;
+    void patchEngagement({ stage: 3 });
+  }, [engagement.stage, engagement.discoveryLog, engagement.artifacts.discoveryCards]);
+
+  useEffect(() => {
     if (engagement.stage === 4 && !signOffComplete(engagement.signOff)) {
       setSignOffOpen(true);
     }
@@ -197,20 +202,18 @@ export function EngagementApp({
   async function decideFinding(issue: string, reaction: UserReaction, note = "") {
     setSelectedIssue(issue);
     setRightOpen(true);
-    await patchEngagement({ discoveryReaction: { issue, reaction, notes: note } });
-    if (reaction === "accepted") {
-      void sendText(
-        `I agree this is material: "${issue}". ${note || "Please log_discovery as accepted."}`.trim(),
-      );
-    } else if (reaction === "disputed") {
-      void sendText(
-        `I do not treat "${issue}" as material. ${note || "Probe it, bring new evidence, and log_probe the revision."}`.trim(),
-      );
-    } else {
-      void sendText(
-        `Flag "${issue}" for more evidence. ${note || "Keep it pending and keep it on the discovery log."}`.trim(),
-      );
+    const next = await patchEngagement({ discoveryReaction: { issue, reaction, notes: note } });
+    if (!next) return;
+    if (pendingFindingCount(next) > 0) return;
+    const accepted = next.discoveryLog
+      .filter((item) => item.reaction === "accepted")
+      .map((item) => item.issue);
+    if (next.stage < 3 && findingsReadyToScore(next)) {
+      await patchEngagement({ stage: 3 });
     }
+    void sendText(
+      `I locked these as material: ${accepted.join("; ") || "none"}. Call save_scoring_framework now with climate change (E1) plus two more environmental topics and three social, with rationale and evidence. Then STOP. Do not score IROs until I accept the key.`,
+    );
   }
 
   async function lockScope(issues: string[]) {
