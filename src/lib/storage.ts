@@ -4,7 +4,7 @@ import path from "path";
 import { del, get, list, put } from "@vercel/blob";
 import { applyStageGates, emptyMethodology, emptySignOff, OPENING_MESSAGE } from "./stages";
 import { deleteAllUploadedDocuments } from "./documents";
-import type { Engagement, SessionUser } from "./types";
+import type { DiscoveryCard, Engagement, SessionUser } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), ".data", "engagements");
 
@@ -96,12 +96,25 @@ function longer<T>(a: T[] | undefined, b: T[] | undefined) {
   return (a?.length || 0) >= (b?.length || 0) ? a || [] : b || [];
 }
 
+function hasRequiredFindingMix(cards?: DiscoveryCard[]) {
+  const list = cards || [];
+  const environmental = list.filter((card) => card.pillar === "environmental").length;
+  const social = list.filter((card) => card.pillar === "social").length;
+  const climate = list.some(
+    (card) => card.pillar === "environmental" && /E1|climate/i.test(`${card.esrs || ""} ${card.issue}`),
+  );
+  return environmental >= 3 && social >= 3 && climate;
+}
+
 function mergeEngagement(latest: Engagement, incoming: Engagement): Engagement {
+  const replaceFindings = hasRequiredFindingMix(incoming.artifacts.discoveryCards);
   const artifacts = {
     ...latest.artifacts,
     ...incoming.artifacts,
     selectedCompany: incoming.artifacts.selectedCompany || latest.artifacts.selectedCompany,
-    discoveryCards: longer(incoming.artifacts.discoveryCards, latest.artifacts.discoveryCards),
+    discoveryCards: replaceFindings
+      ? incoming.artifacts.discoveryCards || []
+      : longer(incoming.artifacts.discoveryCards, latest.artifacts.discoveryCards),
     researchCandidates: longer(incoming.artifacts.researchCandidates, latest.artifacts.researchCandidates),
     issueScores: longer(incoming.artifacts.issueScores, latest.artifacts.issueScores),
     disclosureAudit: longer(incoming.artifacts.disclosureAudit, latest.artifacts.disclosureAudit),
@@ -117,7 +130,7 @@ function mergeEngagement(latest: Engagement, incoming: Engagement): Engagement {
     stage: Math.max(latest.stage, incoming.stage) as Engagement["stage"],
     artifacts,
     documents: longer(incoming.documents, latest.documents),
-    discoveryLog: longer(incoming.discoveryLog, latest.discoveryLog),
+    discoveryLog: replaceFindings ? incoming.discoveryLog : longer(incoming.discoveryLog, latest.discoveryLog),
     probeLog: longer(incoming.probeLog, latest.probeLog),
     dataGapLog: longer(incoming.dataGapLog, latest.dataGapLog),
     assumptionCheckpoints: longer(incoming.assumptionCheckpoints, latest.assumptionCheckpoints),

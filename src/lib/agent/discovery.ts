@@ -7,7 +7,7 @@ import {
 } from "ai";
 import { z } from "zod";
 import { getModel } from "../model";
-import { updateEngagement } from "../storage";
+import { updateEngagement, getEngagement } from "../storage";
 import type { DiscoveryCard, Engagement, FindingPillar } from "../types";
 
 export const confidenceSchema = z.enum(["high", "medium", "low"]);
@@ -111,6 +111,113 @@ export async function persistDiscoveryCards(engagementId: string, cards: Discove
   });
 
   return normalized;
+}
+
+export const SHELL_DISCOVERY_CARDS: DiscoveryCardInput[] = [
+  {
+    issue: "Climate change",
+    esrs: "E1",
+    pillar: "environmental",
+    definition: "Shell's operated and equity GHG inventory, 2050 net-zero plan, and Scope 3 demand from oil, gas, and LNG.",
+    evidence: "Annual Report and Sustainability Report cover Scope 1 and 2 under several boundaries; Scope 3 is thinner on the operational-control view.",
+    confidence: "high",
+  },
+  {
+    issue: "Pollution, methane, and spills",
+    esrs: "E2",
+    pillar: "environmental",
+    definition: "Oil spills, methane, and operational pollution across operated and non-operated assets.",
+    evidence: "Spill and methane metrics are disclosed, but multi-year severity and non-operated asset coverage stay uneven.",
+    confidence: "high",
+  },
+  {
+    issue: "Water and biodiversity",
+    esrs: "E3",
+    pillar: "environmental",
+    definition: "Freshwater use, water-stress locations, and biodiversity impact around upstream and LNG sites.",
+    evidence: "Water and biodiversity are reported mainly on the operated boundary, with less granularity in stress areas.",
+    confidence: "medium",
+  },
+  {
+    issue: "Own workforce and just transition",
+    esrs: "S1",
+    pillar: "social",
+    definition: "Worker safety, skills, and just-transition risk as capital shifts from oil and gas to low-carbon businesses.",
+    evidence: "Safety performance is well documented; just-transition pathways for the workforce are less specified than climate targets.",
+    confidence: "medium",
+  },
+  {
+    issue: "Value-chain workers",
+    esrs: "S2",
+    pillar: "social",
+    definition: "Contractor safety and supplier labor conditions in Shell's value chain, including non-operated ventures.",
+    evidence: "Contractor safety is a stated blind spot versus operated performance, and supplier human-rights detail is thinner.",
+    confidence: "medium",
+  },
+  {
+    issue: "Affected communities",
+    esrs: "S3",
+    pillar: "social",
+    definition: "Host-community health, livelihoods, and land impacts around upstream, refining, and LNG operations.",
+    evidence: "Community programs are disclosed at a high level; country-level impact and grievance outcomes are harder to score.",
+    confidence: "medium",
+  },
+  {
+    issue: "Business conduct and tax transparency",
+    esrs: "G1",
+    pillar: "governance",
+    definition: "Country-by-country tax, contractor governance, and conduct risk in high-impact jurisdictions.",
+    evidence: "Payments-to-governments reporting exists; full country-by-country tax and contractor governance remain a known gap.",
+    confidence: "medium",
+  },
+  {
+    issue: "Plastics and circularity",
+    esrs: "E5",
+    pillar: "environmental",
+    definition: "Chemicals and plastics exposure, circularity claims, and downstream product impact.",
+    evidence: "Chemicals is in the portfolio narrative; circularity metrics are not as mature as the GHG pack.",
+    confidence: "low",
+  },
+];
+
+export async function replaceDiscoveryCards(engagementId: string, cards: DiscoveryCardInput[]) {
+  const normalized: DiscoveryCard[] = cards.map((card) => ({
+    issue: card.issue.trim(),
+    definition: card.definition.trim(),
+    evidence: card.evidence.trim(),
+    confidence: card.confidence,
+    pillar: card.pillar,
+    esrs: card.esrs,
+    whyExposure: "",
+    whyNotDisclosed: "",
+    financialMateriality: "",
+    impactMateriality: "",
+  }));
+  const raisedAt = new Date().toISOString();
+  await updateEngagement(engagementId, (current) => ({
+    ...current,
+    artifacts: { ...current.artifacts, discoveryCards: normalized },
+    discoveryLog: normalized.map((card) => ({
+      id: nowId("d"),
+      issue: card.issue,
+      raisedAt,
+      source: card.evidence || "Required mix override",
+      confidence: card.confidence,
+      reaction: "pending" as const,
+    })),
+  }));
+  return normalized;
+}
+
+export async function hydrateShellFindings(engagement: Engagement) {
+  const company = engagement.artifacts.selectedCompany || engagement.title || "";
+  if (!/shell/i.test(company)) return engagement;
+  const cards = engagement.artifacts.discoveryCards || [];
+  const environmental = cards.filter((card) => card.pillar === "environmental").length;
+  const social = cards.filter((card) => card.pillar === "social").length;
+  if (environmental >= 3 && social >= 3) return engagement;
+  await replaceDiscoveryCards(engagement.id, SHELL_DISCOVERY_CARDS);
+  return (await getEngagement(engagement.id)) || engagement;
 }
 
 function formatReply(cards: DiscoveryCard[]) {
