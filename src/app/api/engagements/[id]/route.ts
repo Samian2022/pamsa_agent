@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { canEnterStage, findingsReadyToScore, methodologyReady, signOffComplete } from "@/lib/stages";
+import { applyStageGates, canEnterStage } from "@/lib/stages";
 import { deleteEngagement, getEngagement, updateEngagement } from "@/lib/storage";
 import type { IssueScore, MethodologyProgress, PricingScope, SignOffState, StageId, UserReaction } from "@/lib/types";
 
@@ -59,26 +59,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           ]
         : current.discoveryLog;
       let nextStage = current.stage;
-      if (typeof body.stage === "number") {
-        if (canEnterStage(body.stage, current.stage, nextSignOff, nextMethodology)) {
-          nextStage = body.stage;
-        }
-      } else if (body.selectedCompany && current.stage === 1) {
-        nextStage = 2;
-      } else if (
-        current.stage === 2 &&
-        findingsReadyToScore({ ...current, discoveryLog: nextLog })
-      ) {
-        if (canEnterStage(3, 2, nextSignOff, nextMethodology)) nextStage = 3;
-      } else if (body.signOff && current.stage === 4 && signOffComplete(nextSignOff)) {
-        if (canEnterStage(5, 4, nextSignOff, nextMethodology)) nextStage = 5;
-      } else if (body.methodology && current.stage === 6 && methodologyReady(nextMethodology)) {
-        if (canEnterStage(7, 6, nextSignOff, nextMethodology)) nextStage = 7;
-      } else if (body.pricingScope && current.stage === 5 && (body.pricingScope.issues?.length || 0) >= 2) {
-        if (canEnterStage(6, 5, nextSignOff, nextMethodology)) nextStage = 6;
+      if (typeof body.stage === "number" && canEnterStage(body.stage, current.stage, nextSignOff, nextMethodology)) {
+        nextStage = body.stage;
       }
 
-      return {
+      return applyStageGates({
         ...current,
         title: body.title ?? (body.selectedCompany ? `${body.selectedCompany} Materiality Study` : current.title),
         stage: nextStage,
@@ -91,7 +76,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           selectedCompany: body.selectedCompany ?? current.artifacts.selectedCompany,
           pricingScope: body.pricingScope ?? current.artifacts.pricingScope,
         },
-      };
+      });
     });
     return NextResponse.json({ engagement });
   } catch {

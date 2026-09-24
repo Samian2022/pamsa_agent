@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { mkdir, readdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { del, get, list, put } from "@vercel/blob";
-import { emptyMethodology, emptySignOff, OPENING_MESSAGE } from "./stages";
+import { applyStageGates, emptyMethodology, emptySignOff, OPENING_MESSAGE } from "./stages";
 import { deleteAllUploadedDocuments } from "./documents";
 import type { Engagement, SessionUser } from "./types";
 
@@ -80,11 +80,8 @@ function normalizeEngagement(engagement: Engagement): Engagement {
       modelType: model.modelType || "hybrid",
     })),
   };
-  const stage =
-    artifacts.selectedCompany && engagement.stage < 2 ? 2 : engagement.stage;
-  return {
+  return applyStageGates({
     ...engagement,
-    stage,
     discoveryLog: engagement.discoveryLog || [],
     probeLog: engagement.probeLog || [],
     dataGapLog: engagement.dataGapLog || [],
@@ -92,7 +89,7 @@ function normalizeEngagement(engagement: Engagement): Engagement {
     methodology: engagement.methodology || emptyMethodology(),
     documents: engagement.documents || [],
     artifacts,
-  };
+  });
 }
 
 function longer<T>(a: T[] | undefined, b: T[] | undefined) {

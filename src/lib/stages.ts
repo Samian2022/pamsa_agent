@@ -211,6 +211,46 @@ export function findingsReadyToScore(engagement: Engagement) {
   return decided && accepted;
 }
 
+export function scoringReadyToSignOff(engagement: Engagement) {
+  const scores = engagement.artifacts.issueScores || [];
+  if (!engagement.artifacts.scoringFramework || scores.length === 0) return false;
+  const accepted = engagement.discoveryLog.filter((item) => item.reaction === "accepted").length;
+  const needed = accepted > 0 ? accepted : Math.max(1, engagement.artifacts.discoveryCards?.length || 1);
+  return scores.length >= needed;
+}
+
+export function scopeReadyToTeach(engagement: Engagement) {
+  return (engagement.artifacts.pricingScope?.issues.length || 0) >= 2;
+}
+
+export function applyStageGates(engagement: Engagement): Engagement {
+  let stage = engagement.stage;
+  const signOff = engagement.signOff || emptySignOff();
+  const methodology = engagement.methodology || emptyMethodology();
+  const ready: [StageId, boolean][] = [
+    [2, Boolean(engagement.artifacts.selectedCompany)],
+    [3, findingsReadyToScore(engagement)],
+    [4, scoringReadyToSignOff(engagement)],
+    [5, signOffComplete(signOff)],
+    [6, scopeReadyToTeach(engagement)],
+    [7, methodologyReady(methodology)],
+  ];
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const [target, ok] of ready) {
+      if (stage === target - 1 && ok && canEnterStage(target, stage, signOff, methodology)) {
+        stage = target;
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  return { ...engagement, stage, signOff, methodology };
+}
+
 export function nextAction(engagement: Engagement): string {
   const pending = pendingFindingCount(engagement);
   if (pending > 0) {
@@ -240,7 +280,10 @@ export function nextAction(engagement: Engagement): string {
     if (!engagement.artifacts.scoringFramework) {
       return "Ask the agent to lock the scoring key first: climate (E1) plus two more environmental topics and three social, with rationale. Then score IROs, not topic labels.";
     }
-    return "Score each IRO against the scoring key. The rationale must use the band language. Metrics must measure why it scored high.";
+    if (scoringReadyToSignOff(engagement)) {
+      return "Scores are locked. Continue to sign-off, or press Lock these scores if the checklist is not open yet.";
+    }
+    return "Score each IRO against the scoring key, then press Lock these scores and continue to sign-off. The rationale must use the band language.";
   }
   if (engagement.stage === 4) {
     return signOffComplete(engagement.signOff)

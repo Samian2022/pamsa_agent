@@ -445,11 +445,13 @@ export function ScoringPanel({
   selected,
   onSelect,
   onScores,
+  onLock,
 }: {
   engagement: Engagement;
   selected: string | null;
   onSelect: (issue: string) => void;
   onScores: (issues: IssueScore[]) => void;
+  onLock?: (issues: IssueScore[]) => void;
 }) {
   const issues = engagement.artifacts.issueScores;
   const framework = engagement.artifacts.scoringFramework;
@@ -672,6 +674,15 @@ export function ScoringPanel({
           );
         })}
       </div>
+      {draft.length && onLock ? (
+        <button
+          type="button"
+          onClick={() => onLock(draft)}
+          className="btn-primary rounded-full px-4 py-2 text-sm"
+        >
+          Lock these scores and continue to sign-off
+        </button>
+      ) : null}
     </div>
   );
 }

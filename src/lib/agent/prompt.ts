@@ -234,10 +234,10 @@ Layer 3: Proactive hypotheses from Stage 2-3
 
 Each row is an IRO: title, description of what is in the score, topic, kind (impact/risk/opportunity), actual vs potential, positive vs negative, where in the value chain (descriptors, not scores). Then score each impact dimension and each financial dimension against the key. Combined impact and financial scores are rollups. Mark material using the saved threshold. Recommend metrics that match the high-scoring criteria, with whyLinkedToCriteria. Cite page or section.
 
-Ask the user to validate scores against the key, not against gut feel. Then update_stage(4).
+Ask the user to validate scores against the key, not against gut feel. When they press Lock these scores, or when every accepted finding has an IRO score, the workspace moves to Stage 4. Call update_stage(4) only if it has not already moved.
 
 ### Stage 4: DMA Sign-off (gate)
-User must confirm the checklist in the Sign-off panel. Do not enter Stage 5 until complete. If an item is incomplete, return to Stage 2 or 3 to fill it. Items:
+User must confirm the checklist in the Sign-off panel. The workspace moves to Stage 5 as soon as every item is checked. Do not enter Stage 5 until complete.
 1. Stakeholder map
 2. Issue selection: 3 environmental (E1 climate required) and 3 social topics, scored as IROs, mix of disclosed and undisclosed
 3. Undisclosed risks investigated (evidence quality and include vs monitor)
@@ -249,10 +249,10 @@ User must confirm the checklist in the Sign-off panel. Do not enter Stage 5 unti
 (The panel also has a ninth lock for ranking/locking the final set. Treat it as part of issue selection.)
 
 ### Stage 5: Pricing model scoping
-Present 2-4 candidate issues with strongest P&L pathways: primary financial mechanism, data requirements, scenario depth, modeling complexity, recommended yes/maybe. User selects 2-3 issues and commits to horizon (5 or 10 years), scenario range (conservative / base / aggressive), and public-only vs willing to estimate. Also lock model type(s): Cost, Revenue, Capex, WACC, Hybrid. Confirm build mode A/B/C. Save with save_pricing_scope. Include at least one undisclosed issue when it has a pathway.
+Present 2-4 candidate issues with strongest P&L pathways: primary financial mechanism, data requirements, scenario depth, modeling complexity, recommended yes/maybe. User selects 2-4 issues. The workspace moves to methodology teaching as soon as they lock scope. Save with save_pricing_scope if it is not already saved. Include at least one undisclosed issue when it has a pathway.
 
 ### Stage 6: Teach methodology before any locked model (7A)
-Do not dump a black-box model. Do not call update_stage(7) until typesWalked, anatomyWalked, and buildMode are set via save_methodology.
+Do not dump a black-box model. The workspace moves to the model build as soon as typesWalked, anatomyWalked, and buildMode are set. Call update_stage(7) only if it has not already moved.
 
 7A.1 Five model types and when to use each:
 - Cost: input costs rise, EBITDA margin contracts (carbon tax into COGS, labor, energy, remediation)
@@ -291,6 +291,6 @@ On a scoring-key turn, the only tool is save_scoring_framework. Then stop.
 On an IRO scoring turn, save_issue_scores for 1 to 3 IROs, then stop.
 Use web_search and fetch_url only on later turns when the user asks for public facts and no filing text is loaded.
 If search is down or not configured, say so and do not call it.
-update_stage only after the gate is truly met.
+update_stage only after the gate is truly met. Prefer letting the workspace auto-advance when the user has selected: company, all findings, all IRO scores, all sign-off items, 2 to 4 pricing issues, or methodology ticks.
 `;
 }

@@ -4,7 +4,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Markdown from "react-markdown";
-import { composerPlaceholder, findingsReadyToScore, JOURNEY_STAGES, nextAction, pendingFindingCount, signOffComplete, methodologyReady } from "@/lib/stages";
+import { applyStageGates, composerPlaceholder, findingsReadyToScore, JOURNEY_STAGES, nextAction, pendingFindingCount, signOffComplete, methodologyReady } from "@/lib/stages";
 import type { Engagement, IssueScore, MethodologyProgress, PricingScope, SessionUser, SignOffState, UserReaction } from "@/lib/types";
 import { LeftSidebar } from "@/components/workspace/left-sidebar";
 import type { WorkspaceView } from "@/components/workspace/views";
@@ -115,15 +115,31 @@ export function EngagementApp({
   }, [busy]);
 
   useEffect(() => {
-    if (engagement.stage !== 2 || !findingsReadyToScore(engagement)) return;
-    void patchEngagement({ stage: 3 });
-  }, [engagement.stage, engagement.discoveryLog, engagement.artifacts.discoveryCards]);
+    const gated = applyStageGates(engagement);
+    if (gated.stage > engagement.stage) {
+      void patchEngagement({ stage: gated.stage });
+    }
+  }, [
+    engagement.stage,
+    engagement.discoveryLog,
+    engagement.signOff,
+    engagement.methodology,
+    engagement.artifacts.selectedCompany,
+    engagement.artifacts.discoveryCards,
+    engagement.artifacts.issueScores,
+    engagement.artifacts.scoringFramework,
+    engagement.artifacts.pricingScope,
+  ]);
 
   useEffect(() => {
+    if (engagement.stage >= 5) {
+      setSignOffOpen(false);
+      return;
+    }
     if (engagement.stage === 4 && !signOffComplete(engagement.signOff)) {
       setSignOffOpen(true);
     }
-  }, [engagement.stage]);
+  }, [engagement.stage, engagement.signOff]);
 
   useEffect(() => {
     const n = engagement.artifacts.discoveryCards?.length || 0;
@@ -188,7 +204,21 @@ export function EngagementApp({
   }
 
   async function onScores(issueScores: IssueScore[]) {
-    await patchEngagement({ issueScores });
+    const next = await patchEngagement({ issueScores });
+    if (next && next.stage >= 4 && engagement.stage < 4) {
+      setSignOffOpen(true);
+      void sendText("I locked the DMA scores. I will complete sign-off next. Do not start pricing yet.");
+    }
+  }
+
+  async function lockScores(issueScores: IssueScore[]) {
+    const next = await patchEngagement({ issueScores, stage: 4 });
+    if (next && next.stage >= 4) {
+      setSignOffOpen(true);
+      if (engagement.stage < 4) {
+        void sendText("I locked the DMA scores. I will complete sign-off next. Do not start pricing yet.");
+      }
+    }
   }
 
   async function selectCompany(company: string) {
@@ -390,6 +420,7 @@ export function EngagementApp({
                           selected={selectedIssue}
                           onSelect={selectIssue}
                           onScores={onScores}
+                          onLock={lockScores}
                         />
                         <MetricsGrid engagement={engagement} />
                       </div>
