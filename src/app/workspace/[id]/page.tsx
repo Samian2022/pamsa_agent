@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { hydrateStuckResearch } from "@/lib/agent/research";
 import { getCurrentUser } from "@/lib/auth";
 import { getEngagement } from "@/lib/storage";
 import { EngagementApp } from "./engagement-app";
@@ -9,7 +10,8 @@ export default async function EngagementPage({
   const user = await getCurrentUser();
   if (!user) redirect("/");
   const { id } = await params;
-  const engagement = await getEngagement(id);
-  if (!engagement) redirect("/workspace");
+  const found = await getEngagement(id);
+  if (!found) redirect("/workspace");
+  const engagement = await hydrateStuckResearch(found);
   return <EngagementApp initial={engagement} user={user} />;
 }

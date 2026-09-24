@@ -5,6 +5,7 @@ import { canEnterStage, methodologyReady, signOffComplete } from "../stages";
 import { getEngagement, updateEngagement } from "../storage";
 import { readExtractedText } from "../documents";
 import { discoveryCardsSchema, persistDiscoveryCards } from "./discovery";
+import { persistResearchCandidates, researchCandidatesSchema } from "./research";
 import { issueScoreSchema, persistIssueScores, persistScoringFramework, scoringFrameworkSchema } from "./scoring";
 import type {
   Assumption,
@@ -21,7 +22,6 @@ import type {
   OperationsItem,
   ProbeEntry,
   ReconciliationRow,
-  ResearchCandidate,
   StageId,
 } from "../types";
 
@@ -92,34 +92,10 @@ export function createAgentTools(engagementId: string) {
 
     save_research_candidates: tool({
       description: "Save the Stage 1 research summary table (5–7 companies).",
-      inputSchema: z.object({
-        candidates: z.array(
-          z.object({
-            rank: z.number().int().min(1),
-            company: z.string(),
-            sector: z.string(),
-            geography: z.string(),
-            dataAvailability: score,
-            materialityClarity: score,
-            modelLeverage: score,
-            disclosureMaturity: score,
-            differentiation: score,
-            keyMaterialAngles: z.string(),
-            likelyBlindSpots: z.string(),
-            notes: z.string(),
-            sources: z.array(z.string()),
-          }),
-        ),
-      }),
+      inputSchema: researchCandidatesSchema,
       execute: async ({ candidates }) => {
-        await updateEngagement(engagementId, (current) => ({
-          ...current,
-          artifacts: {
-            ...current.artifacts,
-            researchCandidates: candidates as ResearchCandidate[],
-          },
-        }));
-        return { saved: candidates.length };
+        const saved = await persistResearchCandidates(engagementId, candidates);
+        return { saved: saved.length };
       },
     }),
 

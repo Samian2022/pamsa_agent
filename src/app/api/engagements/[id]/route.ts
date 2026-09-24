@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { hydrateStuckResearch } from "@/lib/agent/research";
 import { applyStageGates, canEnterStage } from "@/lib/stages";
 import { deleteEngagement, getEngagement, updateEngagement } from "@/lib/storage";
-import type { IssueScore, MethodologyProgress, PricingScope, SignOffState, StageId, UserReaction } from "@/lib/types";
+import type { IssueScore, MethodologyProgress, PricingScope, ResearchCandidate, SignOffState, StageId, UserReaction } from "@/lib/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -12,10 +13,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await context.params;
-  const engagement = await getEngagement(id);
-  if (!engagement) {
+  const found = await getEngagement(id);
+  if (!found) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  const engagement = await hydrateStuckResearch(found);
   return NextResponse.json({ engagement });
 }
 
@@ -33,6 +35,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     selectedCompany?: string;
     stage?: StageId;
     pricingScope?: PricingScope;
+    researchCandidates?: ResearchCandidate[];
+    searchCriteria?: string;
     discoveryReaction?: { issue: string; reaction: UserReaction; notes?: string };
   };
   try {
@@ -75,6 +79,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           issueScores: body.issueScores ?? current.artifacts.issueScores,
           selectedCompany: body.selectedCompany ?? current.artifacts.selectedCompany,
           pricingScope: body.pricingScope ?? current.artifacts.pricingScope,
+          researchCandidates: body.researchCandidates ?? current.artifacts.researchCandidates,
+          searchCriteria: body.searchCriteria ?? current.artifacts.searchCriteria,
         },
       });
     });

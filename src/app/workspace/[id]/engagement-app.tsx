@@ -85,6 +85,7 @@ export function EngagementApp({
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const seenCardCount = useRef(initial.artifacts.discoveryCards?.length || 0);
+  const seenCandidateCount = useRef(initial.artifacts.researchCandidates?.length || 0);
 
   const transport = useMemo(
     () =>
@@ -164,6 +165,16 @@ export function EngagementApp({
       if (firstPending) setRightOpen(true);
     }
   }, [engagement.artifacts.discoveryCards, engagement.discoveryLog, selectedIssue]);
+
+  useEffect(() => {
+    const n = engagement.artifacts.researchCandidates?.length || 0;
+    if (n > seenCandidateCount.current) {
+      seenCandidateCount.current = n;
+      setView("workspace");
+    } else {
+      seenCandidateCount.current = n;
+    }
+  }, [engagement.artifacts.researchCandidates]);
 
   async function refresh() {
     const response = await fetch(`/api/engagements/${initial.id}`);
@@ -386,11 +397,17 @@ export function EngagementApp({
                     {engagement.stage <= 1 && !engagement.artifacts.selectedCompany ? (
                       engagement.artifacts.researchCandidates?.length ? (
                         <ResearchCards engagement={engagement} onSelect={selectCompany} />
+                      ) : busy ? (
+                        <div className="rounded-2xl border border-[var(--line)] bg-white/90 p-5">
+                          <h2 className="serif text-[18px] text-forest">Candidate Rankings</h2>
+                          <p className="mt-2 text-[13px] leading-6 text-ink-soft">
+                            Scoring five to seven companies now. The ranked table appears here as soon as it is saved.
+                          </p>
+                        </div>
                       ) : (
                         <DiscoveryBrief
                           busy={busy}
                           onSubmit={(text) => {
-                            setView("chat");
                             void sendText(text);
                           }}
                         />

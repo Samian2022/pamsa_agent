@@ -1,5 +1,6 @@
 import { convertToModelMessages, pruneMessages, stepCountIs, streamText, type UIMessage } from "ai";
 import { extractFindingsResponse } from "@/lib/agent/discovery";
+import { extractResearchResponse } from "@/lib/agent/research";
 import { createAgentTools } from "@/lib/agent/tools";
 import { buildSystemPrompt } from "@/lib/agent/prompt";
 import { getCurrentUser } from "@/lib/auth";
@@ -49,7 +50,13 @@ export async function POST(request: Request) {
     !decisionTurn &&
     (/uploaded|save_discovery_cards|discovery cards|read_uploaded_document|ask agent to review/i.test(userText) ||
       (engagement.stage >= 2 && cardCount < 6));
+  const candidateCount = engagement.artifacts.researchCandidates?.length || 0;
   const stage1 = engagement.stage <= 1;
+  const stage1Research =
+    stage1 &&
+    !engagement.artifacts.selectedCompany &&
+    candidateCount < 5 &&
+    /research|candidates|criteria|sector|energy|see the list|where is the result|show the list/i.test(userText);
   const tools = createAgentTools(engagementId);
   const documentBodies = await loadDocumentTextForPrompt(engagementId, engagement.documents || []);
   if (findingExtract) {
@@ -58,6 +65,14 @@ export async function POST(request: Request) {
       engagementId,
       messages,
       documentBodies,
+      userText,
+    });
+  }
+  if (stage1Research) {
+    return extractResearchResponse({
+      engagement,
+      engagementId,
+      messages,
       userText,
     });
   }
