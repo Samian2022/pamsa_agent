@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { hydrateStuckResearch } from "@/lib/agent/research";
 import { hydrateFlaggedProbes, hydrateShellFindings } from "@/lib/agent/discovery";
+import { hydrateStuckResearch } from "@/lib/agent/research";
+import { hydrateMissingScoringKey } from "@/lib/agent/scoring";
 import { applyStageGates, canEnterStage } from "@/lib/stages";
 import { deleteEngagement, getEngagement, updateEngagement } from "@/lib/storage";
 import type { IssueScore, MethodologyProgress, PricingScope, ResearchCandidate, SignOffState, StageId, UserReaction } from "@/lib/types";
@@ -18,7 +19,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   if (!found) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const engagement = await hydrateFlaggedProbes(await hydrateShellFindings(await hydrateStuckResearch(found)));
+  const engagement = await hydrateMissingScoringKey(
+    await hydrateFlaggedProbes(await hydrateShellFindings(await hydrateStuckResearch(found))),
+  );
   return NextResponse.json({ engagement });
 }
 

@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { hydrateFlaggedProbes, hydrateShellFindings } from "@/lib/agent/discovery";
+import { hydrateStuckResearch } from "@/lib/agent/research";
+import { hydrateMissingScoringKey } from "@/lib/agent/scoring";
 import { getCurrentUser } from "@/lib/auth";
 import { buildEngagementWorkbook } from "@/lib/excel";
 import { getEngagement } from "@/lib/storage";
@@ -12,10 +15,13 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await context.params;
-  const engagement = await getEngagement(id);
-  if (!engagement) {
+  const found = await getEngagement(id);
+  if (!found) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  const engagement = await hydrateMissingScoringKey(
+    await hydrateFlaggedProbes(await hydrateShellFindings(await hydrateStuckResearch(found))),
+  );
 
   const buffer = await buildEngagementWorkbook(engagement);
   const filename = `${(engagement.artifacts.selectedCompany || engagement.title)

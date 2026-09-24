@@ -1,6 +1,7 @@
 import { convertToModelMessages, pruneMessages, stepCountIs, streamText, type UIMessage } from "ai";
 import { extractFindingsResponse, extractProbeResponse } from "@/lib/agent/discovery";
 import { extractResearchResponse } from "@/lib/agent/research";
+import { extractScoringKeyResponse } from "@/lib/agent/scoring";
 import { createAgentTools } from "@/lib/agent/tools";
 import { buildSystemPrompt } from "@/lib/agent/prompt";
 import { getCurrentUser } from "@/lib/auth";
@@ -45,6 +46,8 @@ export async function POST(request: Request) {
   const messages = body.messages || [];
   const userText = lastUserText(messages);
   const probeTurn = /need more evidence|more evidence on/i.test(userText);
+  const scoringKeyTurn =
+    !engagement.artifacts.scoringFramework && /scoring key|save_scoring_framework/i.test(userText);
   const decisionTurn = /this is material|do not treat|log_discovery|log_probe/i.test(userText);
   const cardCount = engagement.artifacts.discoveryCards?.length || 0;
   const findingExtract =
@@ -61,6 +64,14 @@ export async function POST(request: Request) {
     /research|candidates|criteria|sector|energy|see the list|where is the result|show the list/i.test(userText);
   if (probeTurn) {
     return extractProbeResponse({
+      engagement,
+      engagementId,
+      messages,
+      userText,
+    });
+  }
+  if (scoringKeyTurn) {
+    return extractScoringKeyResponse({
       engagement,
       engagementId,
       messages,

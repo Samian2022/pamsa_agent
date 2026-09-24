@@ -245,7 +245,7 @@ export function LeftSidebar({
           href={`/api/engagements/${engagement.id}/export`}
           className="mt-4 inline-flex text-[12px] text-sage underline-offset-2 hover:underline"
         >
-          Download your model
+          Download DMA Excel
         </a>
       </div>
     </aside>
