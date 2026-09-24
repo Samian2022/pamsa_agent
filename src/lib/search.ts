@@ -40,7 +40,7 @@ async function searchTavily(query: string) {
       max_results: 8,
       include_answer: true,
     }),
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) {
     throw new Error(`Tavily search failed (${response.status})`);
@@ -69,7 +69,7 @@ async function searchBrave(query: string) {
       Accept: "application/json",
       "X-Subscription-Token": process.env.BRAVE_SEARCH_API_KEY || "",
     },
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) {
     throw new Error(`Brave search failed (${response.status})`);
@@ -87,18 +87,27 @@ async function searchBrave(query: string) {
   };
 }
 
-async function searchDuckDuckGo(query: string): Promise<SearchHit[]> {
-  const url = new URL("https://html.duckduckgo.com/html/");
-  url.searchParams.set("q", query);
+async function fetchHtml(url: string) {
   const response = await fetch(url, {
     headers: {
       Accept: "text/html",
       "User-Agent": "Mozilla/5.0 (compatible; PAMSA-Agent/1.0; research)",
     },
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(4000),
   });
-  if (!response.ok) return [];
-  const html = await response.text();
+  if (!response.ok) return "";
+  return response.text();
+}
+
+async function searchDuckDuckGo(query: string): Promise<SearchHit[]> {
+  const htmlUrl = new URL("https://html.duckduckgo.com/html/");
+  htmlUrl.searchParams.set("q", query);
+  const liteUrl = new URL("https://lite.duckduckgo.com/lite/");
+  liteUrl.searchParams.set("q", query);
+  const [html, liteHtml] = await Promise.all([
+    fetchHtml(htmlUrl.toString()).catch(() => ""),
+    fetchHtml(liteUrl.toString()).catch(() => ""),
+  ]);
   const hits: SearchHit[] = [];
   const blockRe =
     /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?(?:class="result__snippet"[^>]*>([\s\S]*?)<\/(?:a|td|span)>|class="result__snippet"[^>]*>([\s\S]*?)<)/gi;
@@ -109,31 +118,17 @@ async function searchDuckDuckGo(query: string): Promise<SearchHit[]> {
       snippet: stripTags(match[3] || match[4] || ""),
     });
   }
-  if (hits.length) return uniqueHits(hits).slice(0, 8);
-
-  const lite = new URL("https://lite.duckduckgo.com/lite/");
-  lite.searchParams.set("q", query);
-  const liteResponse = await fetch(lite, {
-    headers: {
-      Accept: "text/html",
-      "User-Agent": "Mozilla/5.0 (compatible; PAMSA-Agent/1.0; research)",
-    },
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!liteResponse.ok) return [];
-  const liteHtml = await liteResponse.text();
-  const liteHits: SearchHit[] = [];
   const liteRe = /<a[^>]*rel="nofollow"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
   for (const match of liteHtml.matchAll(liteRe)) {
     const href = decodeDdgUrl(match[1]);
     if (!href.startsWith("http")) continue;
-    liteHits.push({
+    hits.push({
       url: href,
       title: stripTags(match[2]) || href,
       snippet: "",
     });
   }
-  return uniqueHits(liteHits).slice(0, 8);
+  return uniqueHits(hits).slice(0, 8);
 }
 
 async function searchWikipedia(query: string): Promise<SearchHit[]> {
@@ -146,7 +141,7 @@ async function searchWikipedia(query: string): Promise<SearchHit[]> {
   url.searchParams.set("origin", "*");
   const response = await fetch(url, {
     headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(4000),
   });
   if (!response.ok) return [];
   const data = (await response.json()) as [string, string[], string[], string[]];

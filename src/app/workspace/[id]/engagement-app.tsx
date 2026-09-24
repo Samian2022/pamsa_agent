@@ -370,7 +370,9 @@ export function EngagementApp({
           <p className="text-[10px] uppercase tracking-[0.16em] text-taupe">Now</p>
           <p className="mt-1 text-[13px] leading-6 text-forest">
             {busy
-              ? "Extracting findings now. Review findings cards appear as soon as they are saved, usually in about 15 seconds. You do not need to wait for the chat to finish."
+              ? engagement.stage <= 1
+                ? "Researching candidates now. A ranked table should appear in about 20 seconds."
+                : "Extracting findings now. Review findings cards appear as soon as they are saved, usually in about 15 seconds. You do not need to wait for the chat to finish."
               : nextAction(engagement)}
           </p>
         </div>

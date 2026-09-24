@@ -49,6 +49,7 @@ export async function POST(request: Request) {
     !decisionTurn &&
     (/uploaded|save_discovery_cards|discovery cards|read_uploaded_document|ask agent to review/i.test(userText) ||
       (engagement.stage >= 2 && cardCount < 6));
+  const stage1 = engagement.stage <= 1;
   const tools = createAgentTools(engagementId);
   const documentBodies = await loadDocumentTextForPrompt(engagementId, engagement.documents || []);
   if (findingExtract) {
@@ -72,9 +73,13 @@ export async function POST(request: Request) {
     system: buildSystemPrompt(engagement, { documentBodies }),
     messages: modelMessages,
     tools,
-    timeout: { totalMs: 50_000, toolMs: 12_000 },
-    stopWhen: stepCountIs(decisionTurn ? 3 : 5),
-    activeTools: decisionTurn ? ["log_discovery", "log_probe", "save_discovery_cards"] : undefined,
+    timeout: { totalMs: 50_000, toolMs: stage1 ? 8_000 : 12_000 },
+    stopWhen: stepCountIs(decisionTurn ? 3 : stage1 ? 2 : 4),
+    activeTools: decisionTurn
+      ? ["log_discovery", "log_probe", "save_discovery_cards"]
+      : stage1
+        ? ["web_search", "save_research_candidates"]
+        : undefined,
   });
 
   return result.toUIMessageStreamResponse({
