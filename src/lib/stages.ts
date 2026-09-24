@@ -55,7 +55,7 @@ export const SIGN_OFF_ITEMS: { id: string; label: string; description: string }[
   {
     id: "disclosed-issues",
     label: "Issue selection locked",
-    description: "Three environmental topics including climate (E1), three social topics, and the IROs under them are locked, mixing disclosed issues and undisclosed risks.",
+    description: "Three environmental topics including climate (E1) and three social topics are locked as a must, then extras if you added them, with IROs under them mixing disclosed issues and undisclosed risks.",
   },
   {
     id: "undisclosed-issues",
@@ -212,8 +212,15 @@ export function findingsReadyToScore(engagement: Engagement) {
 }
 
 export function scoringReadyToSignOff(engagement: Engagement) {
+  const framework = engagement.artifacts.scoringFramework;
   const scores = engagement.artifacts.issueScores || [];
-  if (!engagement.artifacts.scoringFramework || scores.length === 0) return false;
+  if (!framework || scores.length === 0) return false;
+  const env = framework.topics.filter((topic) => topic.pillar === "environmental").length;
+  const social = framework.topics.filter((topic) => topic.pillar === "social").length;
+  const hasClimate = framework.topics.some(
+    (topic) => topic.pillar === "environmental" && /E1|climate/i.test(`${topic.esrs} ${topic.name}`),
+  );
+  if (env < 3 || social < 3 || !hasClimate) return false;
   const accepted = engagement.discoveryLog.filter((item) => item.reaction === "accepted").length;
   const needed = accepted > 0 ? accepted : Math.max(1, engagement.artifacts.discoveryCards?.length || 1);
   return scores.length >= needed;
@@ -278,7 +285,7 @@ export function nextAction(engagement: Engagement): string {
   }
   if (engagement.stage === 3) {
     if (!engagement.artifacts.scoringFramework) {
-      return "Ask the agent to lock the scoring key first: climate (E1) plus two more environmental topics and three social, with rationale. Then score IROs, not topic labels.";
+      return "Ask the agent to lock the scoring key first: 3 environmental including climate (E1) and 3 social are required, then extras if useful. Then score IROs, not topic labels.";
     }
     if (scoringReadyToSignOff(engagement)) {
       return "Scores are locked. Continue to sign-off, or press Lock these scores if the checklist is not open yet.";

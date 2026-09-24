@@ -246,7 +246,7 @@ export async function buildEngagementWorkbook(engagement: Engagement) {
       key.addRow([topic.esrs, topic.name, topic.pillar, topic.rationale, topic.evidence]);
     }
   } else {
-    key.addRow(["No scoring key saved. Lock climate (E1) plus two more environmental topics and three social before scoring IROs."]);
+    key.addRow(["No scoring key saved. Lock 3 environmental topics including climate (E1) and 3 social as a must, then extras if useful, before scoring IROs."]);
   }
   key.columns = [{ width: 28 }, { width: 28 }, { width: 16 }, { width: 50 }, { width: 50 }];
 

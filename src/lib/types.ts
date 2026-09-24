@@ -101,6 +101,8 @@ export type Stakeholder = {
   unspokenWorries: string;
 };
 
+export type FindingPillar = "environmental" | "social" | "governance";
+
 export type DiscoveryCard = {
   issue: string;
   definition: string;
@@ -110,6 +112,8 @@ export type DiscoveryCard = {
   financialMateriality: string;
   impactMateriality: string;
   confidence: Confidence;
+  pillar?: FindingPillar;
+  esrs?: string;
   companyDisclosure?: string;
   esrsExpectation?: string;
   operationsSignal?: string;
@@ -137,7 +141,7 @@ export type RecommendedMetric = {
 export type ScoringTopic = {
   esrs: string;
   name: string;
-  pillar: "environmental" | "social";
+  pillar: FindingPillar;
   rationale: string;
   evidence: string;
 };

@@ -19,21 +19,26 @@ const recommendedMetric = z.object({
   alreadyReported: z.boolean().optional(),
 });
 
+const topicFields = z.object({
+  esrs: z.string().min(2).max(12),
+  name: z.string().min(3).max(80),
+  rationale: z.string().min(12).max(320),
+  evidence: z.string().min(12).max(320),
+});
+
 export const scoringFrameworkSchema = z.object({
   scaleChoiceRationale: z.string().min(20).max(600),
   topicSelectionRationale: z.string().min(20).max(800),
-  topics: z
+  environmentalTopics: z.array(topicFields).min(3).max(3),
+  socialTopics: z.array(topicFields).min(3).max(3),
+  additionalTopics: z
     .array(
-      z.object({
-        esrs: z.string().min(2).max(12),
-        name: z.string().min(3).max(80),
-        pillar: z.enum(["environmental", "social"]),
-        rationale: z.string().min(12).max(320),
-        evidence: z.string().min(12).max(320),
+      topicFields.extend({
+        pillar: z.enum(["governance", "environmental", "social"]).optional(),
       }),
     )
-    .min(4)
-    .max(8),
+    .max(3)
+    .optional(),
   impactDimensions: z.string().min(12).max(240),
   impactIncludesValueChain: z.boolean(),
   socialNormsUsed: z.string().min(8).max(400),
@@ -50,6 +55,28 @@ export const scoringFrameworkSchema = z.object({
   thresholdRationale: z.string().min(20).max(800),
   alignedToCompanyFinancials: z.string().min(12).max(400),
 });
+
+export function flattenScoringFramework(input: z.infer<typeof scoringFrameworkSchema>): ScoringFramework {
+  const { environmentalTopics, socialTopics, additionalTopics, ...rest } = input;
+  return {
+    ...rest,
+    topics: [
+      ...environmentalTopics.map((topic, index) => ({
+        ...topic,
+        pillar: "environmental" as const,
+        esrs: topic.esrs || (index === 0 ? "E1" : topic.esrs),
+      })),
+      ...socialTopics.map((topic) => ({
+        ...topic,
+        pillar: "social" as const,
+      })),
+      ...(additionalTopics || []).map((topic) => ({
+        ...topic,
+        pillar: topic.pillar || "governance",
+      })),
+    ],
+  };
+}
 
 export const issueScoreSchema = z.object({
   issue: z.string().min(3).max(90),

@@ -9,7 +9,7 @@ const ACCEPT = ".pdf,.txt,.md,.csv,.json,.html,.htm,.xlsx";
 
 export function documentReviewPrompt(names: string[]) {
   const files = names.join(", ");
-  return `I uploaded ${files}. Filing text is already in context. Call save_discovery_cards now with 6 to 8 findings, never fewer than 6 distinct issues. Then a short numbered list (issue, one sentence, filename). Then STOP. Do not search, fetch URLs, or write a memo.`;
+  return `I uploaded ${files}. Filing text is already in context. Call save_discovery_cards now with 3 environmental findings including climate E1, 3 social findings, then extras if they fit in 8 cards. Then a short numbered list grouped environmental then social. Then STOP. Do not search, fetch URLs, or write a memo.`;
 }
 
 function statusLabel(doc: UploadedDocument) {

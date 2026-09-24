@@ -236,7 +236,7 @@ export function EngagementApp({
     await patchEngagement({ selectedCompany: company });
     setView("workspace");
     void sendText(
-      `I selected ${company}. Call save_discovery_cards first with 6 to 8 likely-material issues from uploaded filings or what you already know. Never fewer than 6. Then STOP. Do not run the full 2A-2G audit this turn.`,
+      `I selected ${company}. Call save_discovery_cards first with 3 environmental findings including climate E1, 3 social findings, then extras if they fit in 8 cards. Then STOP. Do not run the full 2A-2G audit this turn.`,
     );
   }
 
@@ -253,7 +253,7 @@ export function EngagementApp({
       await patchEngagement({ stage: 3 });
     }
     void sendText(
-      `I locked these as material: ${accepted.join("; ") || "none"}. Call save_scoring_framework now with climate change (E1) plus two more environmental topics and three social, with rationale and evidence. Then STOP. Do not score IROs until I accept the key.`,
+      `I locked these as material: ${accepted.join("; ") || "none"}. Call save_scoring_framework now with 3 environmental topics including climate change (E1) and 3 social as a must, then extras if useful, with rationale and evidence. Then STOP. Do not score IROs until I accept the key.`,
     );
   }
 

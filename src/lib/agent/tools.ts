@@ -4,9 +4,9 @@ import { fetchUrl, webSearch } from "../search";
 import { canEnterStage, methodologyReady, signOffComplete } from "../stages";
 import { getEngagement, updateEngagement } from "../storage";
 import { readExtractedText } from "../documents";
-import { discoveryCardsSchema, persistDiscoveryCards } from "./discovery";
+import { discoveryCardsSchema, flattenDiscoveryCards, persistDiscoveryCards } from "./discovery";
 import { persistResearchCandidates, researchCandidatesSchema } from "./research";
-import { issueScoreSchema, persistIssueScores, persistScoringFramework, scoringFrameworkSchema } from "./scoring";
+import { flattenScoringFramework, issueScoreSchema, persistIssueScores, persistScoringFramework, scoringFrameworkSchema } from "./scoring";
 import type {
   Assumption,
   AssumptionCheckpoint,
@@ -302,24 +302,25 @@ export function createAgentTools(engagementId: string) {
 
     save_discovery_cards: tool({
       description:
-        "Save 6 to 8 short discovery cards and add each new issue to the discovery log as pending. Always send at least 6 distinct issues. Keep every field to one sentence.",
+        "Save discovery cards. Required mix: at least 3 environmental including climate E1, at least 3 social, then 0 to 2 additional (governance or extra). Six to eight cards total. Each new issue is logged as pending.",
       inputSchema: discoveryCardsSchema,
-      execute: async ({ cards }) => {
-        const normalized = await persistDiscoveryCards(engagementId, cards);
+      execute: async (input) => {
+        const normalized = await persistDiscoveryCards(engagementId, flattenDiscoveryCards(input));
         return { saved: normalized.length, mode: "merged", alsoLogged: true, issues: normalized.map((card) => card.issue) };
       },
     }),
 
     save_scoring_framework: tool({
       description:
-        "Save the scoring key before scoring IROs. Lock topic selection (climate E1 plus two more environmental and three social), why you use a 1 to 5 scale, impact and financial criteria, time horizons, and the materiality threshold.",
+        "Save the scoring key before scoring IROs. Required: 3 environmental topics including climate E1, plus 3 social. Additional governance or extra topics are allowed after that must-set. Also lock why 1 to 5, impact and financial criteria, time horizons, and the materiality threshold.",
       inputSchema: scoringFrameworkSchema,
       execute: async (framework) => {
-        await persistScoringFramework(engagementId, framework);
+        const saved = flattenScoringFramework(framework);
+        await persistScoringFramework(engagementId, saved);
         return {
           saved: true,
-          topics: framework.topics.map((topic) => `${topic.esrs} ${topic.name}`),
-          threshold: framework.thresholdRule,
+          topics: saved.topics.map((topic) => `${topic.esrs} ${topic.name}`),
+          threshold: saved.thresholdRule,
         };
       },
     }),

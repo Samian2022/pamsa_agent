@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FINANCIAL_BANDS, IMPACT_BANDS, SCORE_LABELS, confidencePercent, rationaleMatchesBand } from "@/lib/format";
 import { methodologyReady, SIGN_OFF_ITEMS } from "@/lib/stages";
 import type {
+  DiscoveryCard,
   Engagement,
   IssueScore,
   MethodologyProgress,
@@ -24,6 +25,30 @@ function PanelHeader({ title, subtitle }: { title: string; subtitle: string }) {
       <p className="mt-2 text-[13px] leading-6 text-ink-soft">{subtitle}</p>
     </div>
   );
+}
+
+function findingGroups(cards: DiscoveryCard[]) {
+  const environmental = cards.filter((card) => card.pillar === "environmental");
+  const social = cards.filter((card) => card.pillar === "social");
+  const extra = cards.filter((card) => card.pillar && card.pillar !== "environmental" && card.pillar !== "social");
+  const ungrouped = cards.filter((card) => !card.pillar);
+  if (!environmental.length && !social.length) {
+    return [{ label: "", hint: "", cards }];
+  }
+  return [
+    { label: "Environmental", hint: "3 required, including climate (E1)", cards: environmental },
+    { label: "Social", hint: "3 required", cards: social },
+    extra.length || ungrouped.length
+      ? { label: "Additional", hint: "Governance or extra issues", cards: [...extra, ...ungrouped] }
+      : null,
+  ].filter((group): group is { label: string; hint: string; cards: DiscoveryCard[] } => Boolean(group));
+}
+
+function pillarLabel(card: DiscoveryCard) {
+  if (card.pillar === "environmental") return card.esrs || "E";
+  if (card.pillar === "social") return card.esrs || "S";
+  if (card.pillar === "governance") return card.esrs || "G";
+  return "";
 }
 
 export function LockedPricing({
@@ -108,7 +133,7 @@ export function HypothesisCards({
         <p className="text-sm text-ink-soft">
           {busy
             ? "The agent is extracting findings from the filing. Cards should appear here in about 15 seconds."
-            : "Upload a filing or ask the agent to extract findings. At least 6 cards will land here so you can accept, reject, or flag each one."}
+            : "Upload a filing or ask the agent to extract findings. You will get 3 environmental including climate (E1), 3 social, and extras if they fit, so you can accept, reject, or flag each one."}
         </p>
       </div>
     );
@@ -117,9 +142,17 @@ export function HypothesisCards({
     <div className="space-y-3">
       <PanelHeader
         title="Review findings"
-        subtitle={`${pending} still need your call. This is material puts it in the DMA. Not material keeps it out. Need more evidence sends the agent back to dig.`}
+        subtitle={`${pending} still need your call. 3 environmental including climate (E1) and 3 social are required. This is material puts it in the DMA. Not material keeps it out. Need more evidence sends the agent back to dig.`}
       />
-      {cards.map((card, index) => {
+      {findingGroups(cards).map((group) => (
+        <div key={group.label || "findings"} className="space-y-3">
+          {group.label ? (
+            <p className="pt-2 text-[11px] uppercase tracking-[0.12em] text-taupe">
+              {group.label}
+              {group.hint ? ` · ${group.hint}` : ""}
+            </p>
+          ) : null}
+          {group.cards.map((card, index) => {
         const reaction = engagement.discoveryLog.find((item) => item.issue === card.issue)?.reaction;
         const pendingCard = !reaction || reaction === "pending";
         const tag =
@@ -132,6 +165,7 @@ export function HypothesisCards({
                 : "Waiting for your call";
         const bar =
           reaction === "accepted" ? "border-sage" : reaction === "disputed" ? "border-amber" : "border-rust";
+        const badge = pillarLabel(card);
         return (
           <article
             key={card.issue}
@@ -141,7 +175,14 @@ export function HypothesisCards({
             <button type="button" onClick={() => onSelect(card.issue)} className="w-full text-left">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="serif text-[16px] text-forest">{card.issue}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {badge ? (
+                      <span className="rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white bg-forest">
+                        {badge}
+                      </span>
+                    ) : null}
+                    <h3 className="serif text-[16px] text-forest">{card.issue}</h3>
+                  </div>
                   <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-ink-soft">{card.definition}</p>
                   {card.evidence ? (
                     <p className="mt-1 line-clamp-2 text-[12px] text-ink-soft">Evidence: {card.evidence}</p>
@@ -186,7 +227,9 @@ export function HypothesisCards({
             ) : null}
           </article>
         );
-      })}
+          })}
+        </div>
+      ))}
     </div>
   );
 }
@@ -394,16 +437,17 @@ function DimensionNote({
 function ScoringKey({ framework }: { framework: ScoringFramework }) {
   const environmental = framework.topics.filter((item) => item.pillar === "environmental");
   const social = framework.topics.filter((item) => item.pillar === "social");
+  const additional = framework.topics.filter((item) => item.pillar !== "environmental" && item.pillar !== "social");
   return (
     <div className="space-y-3 rounded-xl border border-[var(--line)] bg-white p-4">
       <PanelHeader
         title="Scoring key"
-        subtitle="Every IRO is scored against this key. The executive team will ask why each choice."
+        subtitle="Every IRO is scored against this key. 3 environmental including climate (E1) and 3 social are required. The executive team will ask why each choice."
       />
       <p className="text-[13px] leading-6 text-ink">{framework.topicSelectionRationale}</p>
       <div className="grid gap-3 md:grid-cols-2">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.12em] text-taupe">Environmental</p>
+          <p className="text-[11px] uppercase tracking-[0.12em] text-taupe">Environmental (3 required)</p>
           <ul className="mt-1 space-y-1 text-[13px] text-ink">
             {environmental.map((topic) => (
               <li key={topic.esrs}>
@@ -413,7 +457,7 @@ function ScoringKey({ framework }: { framework: ScoringFramework }) {
           </ul>
         </div>
         <div>
-          <p className="text-[11px] uppercase tracking-[0.12em] text-taupe">Social</p>
+          <p className="text-[11px] uppercase tracking-[0.12em] text-taupe">Social (3 required)</p>
           <ul className="mt-1 space-y-1 text-[13px] text-ink">
             {social.map((topic) => (
               <li key={topic.esrs}>
@@ -423,6 +467,18 @@ function ScoringKey({ framework }: { framework: ScoringFramework }) {
           </ul>
         </div>
       </div>
+      {additional.length ? (
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.12em] text-taupe">Additional</p>
+          <ul className="mt-1 space-y-1 text-[13px] text-ink">
+            {additional.map((topic) => (
+              <li key={topic.esrs}>
+                {topic.esrs} {topic.name}. {topic.rationale}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <p className="text-[12px] leading-5 text-ink-soft">
         Scale: {framework.scaleChoiceRationale} Threshold: {framework.thresholdRule}.{" "}
         {framework.thresholdRationale} Impact tests: {framework.impactDimensions}
@@ -472,9 +528,9 @@ export function ScoringPanel({
           subtitle="Lock the scoring key first. Then score impacts, risks, and opportunities against that key, not topic labels."
         />
         <p className="text-sm text-ink-soft">
-          Ask the agent to save the scoring key: climate change (E1) plus two more environmental topics and
-          three social, with rationale and evidence. Then score 1 to 3 IROs at a time. Climate is presumed
-          material unless you prove otherwise.
+          Ask the agent to save the scoring key: 3 environmental topics including climate change (E1) and 3
+          social are required, then extras if useful, with rationale and evidence. Then score 1 to 3 IROs at
+          a time. Climate is presumed material unless you prove otherwise.
         </p>
       </div>
     );
